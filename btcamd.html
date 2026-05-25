@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BITAMD - курс крипты</title>
+    <meta charset="utf-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+            background: black;
+            color: white;
+        }
+        .rate {
+            font-size: 64px;
+            color: #f7931a;
+            font-weight: bold;
+            margin: 30px 0;
+        }
+        .update {
+            color: gray;
+        }
+        button {
+            background: #f7931a;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>💰 BITAMD / AMD</h1>
+    <p>Симуляция криптовалюты</p>
+    <div class="rate" id="rate">Загрузка...</div>
+    <div class="update" id="update"></div>
+    <button onclick="location.reload()">Обновить курс</button>
+
+    <script>
+        fetch('rate.json')
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('rate').innerHTML = '1 BITAMD = ' + data.rate + ' AMD';
+                document.getElementById('update').innerHTML = 'Обновлено: ' + new Date(data.last_updated * 1000).toLocaleString();
+            })
+            .catch(err => {
+                document.getElementById('rate').innerHTML = 'Ошибка загрузки';
+            });
+    </script>
+</body>
+</html>
