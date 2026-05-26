@@ -26,8 +26,9 @@
             padding: 10px 20px;
             border-radius: 5px;
             cursor: pointer;
+            margin: 5px;
         }
-        #orderForm {
+        .form-container {
             margin-top: 20px;
             padding: 15px;
             border: 1px solid #333;
@@ -62,13 +63,16 @@
 
     <br><br>
 
-    <!-- Кнопка показа формы -->
-    <button id="showFormBtn" style="background: #f7931a; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; cursor: pointer;">📩 Заказать BITAMD</button>
+    <!-- Кнопка покупки -->
+    <button id="showBuyBtn" style="background: #f7931a; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; cursor: pointer;">📩 Купить BITAMD</button>
+    <!-- Кнопка продажи -->
+    <button id="showSellBtn" style="background: #f7931a; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; cursor: pointer;">🔄 Продать BITAMD</button>
 
-    <!-- Скрытая форма -->
-    <div id="orderForm" style="display: none;">
-        <h3>💰 Заявка на BITAMD</h3>
+    <!-- Форма покупки -->
+    <div id="buyForm" class="form-container" style="display: none;">
+        <h3>💰 Заявка на покупку BITAMD</h3>
         <form action="https://formspree.io/f/YOUR_FORM_ID" method="POST">
+            <input type="hidden" name="type" value="purchase">
             <label>👤 Имя:</label><br>
             <input type="text" name="name" required placeholder="Твоё имя"><br><br>
             <label>📧 Почта:</label><br>
@@ -80,7 +84,26 @@
             <input type="text" name="_gotcha" style="display:none">
             <button type="submit">📩 Отправить заявку</button>
         </form>
-        <div id="formStatus" style="margin-top: 10px;"></div>
+        <div id="buyStatus" style="margin-top: 10px;"></div>
+    </div>
+
+    <!-- Форма продажи -->
+    <div id="sellForm" class="form-container" style="display: none;">
+        <h3>💰 Заявка на продажу BITAMD</h3>
+        <form action="https://formspree.io/f/YOUR_FORM_ID" method="POST">
+            <input type="hidden" name="type" value="sale">
+            <label>👤 Имя:</label><br>
+            <input type="text" name="name" required placeholder="Твоё имя"><br><br>
+            <label>📧 Почта:</label><br>
+            <input type="email" name="email" required placeholder="Твоя почта"><br><br>
+            <label>💎 Количество BITAMD:</label><br>
+            <input type="number" name="amount" step="0.01" required placeholder="Сколько хочешь продать?"><br><br>
+            <label>💬 Дополнительно:</label><br>
+            <textarea name="message" rows="2" placeholder="Твой Telegram или другой контакт"></textarea><br><br>
+            <input type="text" name="_gotcha" style="display:none">
+            <button type="submit">🔄 Отправить заявку</button>
+        </form>
+        <div id="sellStatus" style="margin-top: 10px;"></div>
     </div>
 
     <script>
@@ -95,32 +118,39 @@
                 document.getElementById('rate').innerHTML = 'Ошибка загрузки';
             });
 
-        // Показать/скрыть форму
-        const showBtn = document.getElementById('showFormBtn');
-        const orderFormDiv = document.getElementById('orderForm');
+        // Логика для форм покупки и продажи
+        const buyBtn = document.getElementById('showBuyBtn');
+        const sellBtn = document.getElementById('showSellBtn');
+        const buyFormDiv = document.getElementById('buyForm');
+        const sellFormDiv = document.getElementById('sellForm');
 
-        showBtn.onclick = function() {
-            if (orderFormDiv.style.display === 'none') {
-                orderFormDiv.style.display = 'block';
-                showBtn.textContent = '❌ Скрыть заказ';
-            } else {
-                orderFormDiv.style.display = 'none';
-                showBtn.textContent = '📩 Заказать BITAMD';
-            }
-        }
+        buyBtn.onclick = () => {
+            buyFormDiv.style.display = 'block';
+            sellFormDiv.style.display = 'none';
+            buyBtn.textContent = '❌ Скрыть покупку';
+            sellBtn.textContent = '🔄 Продать BITAMD';
+        };
 
-        // Отправка формы
-        const hiddenForm = document.querySelector('#orderForm form');
-        const statusDiv = document.getElementById('formStatus');
+        sellBtn.onclick = () => {
+            sellFormDiv.style.display = 'block';
+            buyFormDiv.style.display = 'none';
+            sellBtn.textContent = '❌ Скрыть продажу';
+            buyBtn.textContent = '📩 Купить BITAMD';
+        };
 
-        if (hiddenForm) {
-            hiddenForm.addEventListener('submit', async (e) => {
+        // Функция отправки формы (общая)
+        function setupForm(formId, statusId) {
+            const form = document.querySelector(`#${formId} form`);
+            const statusDiv = document.getElementById(statusId);
+            if (!form) return;
+
+            form.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 statusDiv.innerHTML = '⏳ Отправляем...';
                 statusDiv.style.color = 'gray';
-                const formData = new FormData(hiddenForm);
+                const formData = new FormData(form);
                 try {
-                    const response = await fetch(hiddenForm.action, {
+                    const response = await fetch(form.action, {
                         method: 'POST',
                         body: formData,
                         headers: { 'Accept': 'application/json' }
@@ -128,11 +158,15 @@
                     if (response.ok) {
                         statusDiv.innerHTML = '✅ Заявка отправлена!';
                         statusDiv.style.color = 'green';
-                        hiddenForm.reset();
+                        form.reset();
                         setTimeout(() => {
                             statusDiv.innerHTML = '';
-                            orderFormDiv.style.display = 'none';
-                            showBtn.textContent = '📩 Заказать BITAMD';
+                            document.getElementById(formId).style.display = 'none';
+                            if (formId === 'buyForm') {
+                                buyBtn.textContent = '📩 Купить BITAMD';
+                            } else {
+                                sellBtn.textContent = '🔄 Продать BITAMD';
+                            }
                         }, 2000);
                     } else {
                         throw new Error('Ошибка');
@@ -143,6 +177,9 @@
                 }
             });
         }
+
+        setupForm('buyForm', 'buyStatus');
+        setupForm('sellForm', 'sellStatus');
     </script>
 </body>
 </html>
