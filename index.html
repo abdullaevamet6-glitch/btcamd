@@ -53,6 +53,13 @@
         button[type="submit"] {
             width: 100%;
         }
+        canvas {
+            max-width: 100%;
+            margin-top: 30px;
+            background: #1a1a1a;
+            border-radius: 10px;
+            padding: 10px;
+        }
 
         /* Адаптация для телефонов */
         @media (max-width: 600px) {
@@ -77,6 +84,8 @@
             }
         }
     </style>
+    <!-- Подключаем библиотеку для графиков -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <h1>💰 BITAMD / AMD</h1>
@@ -86,6 +95,10 @@
     <button onclick="location.reload()">Обновить курс</button>
 
     <br><br>
+
+    <!-- График курса -->
+    <h3>📈 График курса (последние 30 дней)</h3>
+    <canvas id="cryptoChart" width="400" height="200"></canvas>
 
     <!-- Кнопка покупки -->
     <button id="showBuyBtn" style="background: #f7931a; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; cursor: pointer;">📩 Купить BITAMD</button>
@@ -137,6 +150,13 @@
             .then(data => {
                 document.getElementById('rate').innerHTML = '1 BITAMD = ' + parseFloat(data.rate).toFixed(2) + ' AMD';
                 document.getElementById('update').innerHTML = 'Обновлено: ' + new Date(data.last_updated * 1000).toLocaleString();
+
+                // Рисуем график, если есть история
+                if (data.history) {
+                    drawChart(data.history);
+                } else {
+                    console.warn("История ещё не сохранена. Появится позже.");
+                }
             })
             .catch(err => {
                 document.getElementById('rate').innerHTML = 'Ошибка загрузки';
@@ -204,6 +224,37 @@
 
         setupForm('buyForm', 'buyStatus');
         setupForm('sellForm', 'sellStatus');
+
+        // Функция для отрисовки графика
+        function drawChart(history) {
+            const ctx = document.getElementById('cryptoChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: history.map((_, index) => 'День ' + (index + 1)),
+                    datasets: [{
+                        label: 'Курс BITAMD (AMD)',
+                        data: history,
+                        borderColor: '#f7931a',
+                        backgroundColor: 'rgba(247, 147, 26, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { position: 'top', labels: { color: 'white' } }
+                    },
+                    scales: {
+                        y: { grid: { color: '#333' }, ticks: { color: 'white' } },
+                        x: { grid: { color: '#333' }, ticks: { color: 'white' } }
+                    }
+                }
+            });
+        }
     </script>
 </body>
 </html>
