@@ -60,8 +60,6 @@
             border-radius: 10px;
             padding: 10px;
         }
-
-        /* Адаптация для телефонов */
         @media (max-width: 600px) {
             body {
                 padding: 20px 10px;
@@ -84,7 +82,6 @@
             }
         }
     </style>
-    <!-- Подключаем библиотеку для графиков -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -96,16 +93,14 @@
 
     <br><br>
 
-    <!-- График курса -->
-    <h3>📈 График курса (последние 30 дней)</h3>
+    <h3>📈 График курса</h3>
     <canvas id="cryptoChart" width="400" height="200"></canvas>
 
-    <!-- Кнопка покупки -->
+    <br><br>
+
     <button id="showBuyBtn" style="background: #f7931a; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; cursor: pointer;">📩 Купить BITAMD</button>
-    <!-- Кнопка продажи -->
     <button id="showSellBtn" style="background: #f7931a; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; cursor: pointer;">🔄 Продать BITAMD</button>
 
-    <!-- Форма покупки -->
     <div id="buyForm" class="form-container" style="display: none;">
         <h3>💰 Заявка на покупку BITAMD</h3>
         <form action="https://formspree.io/f/xvzywwzk" method="POST">
@@ -124,7 +119,6 @@
         <div id="buyStatus" style="margin-top: 10px;"></div>
     </div>
 
-    <!-- Форма продажи -->
     <div id="sellForm" class="form-container" style="display: none;">
         <h3>💰 Заявка на продажу BITAMD</h3>
         <form action="https://formspree.io/f/xvzywwzk" method="POST">
@@ -144,25 +138,51 @@
     </div>
 
     <script>
-        // Загрузка курса
+        function drawChart(history) {
+            const ctx = document.getElementById('cryptoChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: history.map((_, i) => i + 1),
+                    datasets: [{
+                        label: 'Курс BITAMD (AMD)',
+                        data: history,
+                        borderColor: '#f7931a',
+                        backgroundColor: 'rgba(247, 147, 26, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'top', labels: { color: 'white' } }
+                    },
+                    scales: {
+                        y: { grid: { color: '#333' }, ticks: { color: 'white' } },
+                        x: { grid: { color: '#333' }, ticks: { color: 'white' } }
+                    }
+                }
+            });
+        }
+
         fetch('rate.json')
             .then(res => res.json())
             .then(data => {
                 document.getElementById('rate').innerHTML = '1 BITAMD = ' + parseFloat(data.rate).toFixed(2) + ' AMD';
                 document.getElementById('update').innerHTML = 'Обновлено: ' + new Date(data.last_updated * 1000).toLocaleString();
 
-                // Рисуем график, если есть история
-                if (data.history) {
+                if (data.history && data.history.length > 0) {
                     drawChart(data.history);
                 } else {
-                    console.warn("История ещё не сохранена. Появится позже.");
+                    console.warn("История пока пуста. После нескольких обновлений график появится.");
                 }
             })
             .catch(err => {
                 document.getElementById('rate').innerHTML = 'Ошибка загрузки';
             });
 
-        // Логика для форм покупки и продажи
         const buyBtn = document.getElementById('showBuyBtn');
         const sellBtn = document.getElementById('showSellBtn');
         const buyFormDiv = document.getElementById('buyForm');
@@ -182,7 +202,6 @@
             buyBtn.textContent = '📩 Купить BITAMD';
         };
 
-        // Функция отправки формы (общая)
         function setupForm(formId, statusId) {
             const form = document.querySelector(`#${formId} form`);
             const statusDiv = document.getElementById(statusId);
@@ -224,37 +243,6 @@
 
         setupForm('buyForm', 'buyStatus');
         setupForm('sellForm', 'sellStatus');
-
-        // Функция для отрисовки графика
-        function drawChart(history) {
-            const ctx = document.getElementById('cryptoChart').getContext('2d');
-            new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: history.map((_, index) => 'День ' + (index + 1)),
-                    datasets: [{
-                        label: 'Курс BITAMD (AMD)',
-                        data: history,
-                        borderColor: '#f7931a',
-                        backgroundColor: 'rgba(247, 147, 26, 0.1)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    plugins: {
-                        legend: { position: 'top', labels: { color: 'white' } }
-                    },
-                    scales: {
-                        y: { grid: { color: '#333' }, ticks: { color: 'white' } },
-                        x: { grid: { color: '#333' }, ticks: { color: 'white' } }
-                    }
-                }
-            });
-        }
     </script>
 </body>
 </html>
