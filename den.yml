@@ -12,7 +12,6 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      # 1. Клонируем репозиторий, используя ТВОЙ личный токен (который работает)
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -25,9 +24,11 @@ jobs:
           if [ -f rate.json ]; then
             OLD=$(cat rate.json | jq -r '.rate')
             OLD_TREND=$(cat rate.json | jq -r '.trend // 0')
+            OLD_HISTORY=$(cat rate.json | jq -r '.history // []')
           else
             OLD=5.00
             OLD_TREND=0
+            OLD_HISTORY="[]"
           fi
 
           R=$((RANDOM % 100))
@@ -55,7 +56,11 @@ jobs:
           fi
 
           TS=$(date +%s)
-          echo "{\"rate\": $NEW, \"trend\": $TREND, \"last_updated\": $TS}" > rate.json
+
+          # Добавляем новый курс в историю и оставляем только последние 30 значений
+          NEW_HISTORY=$(echo "$OLD_HISTORY" | jq --argjson new "$NEW" '. + [$new] | last(30)')
+
+          echo "{\"rate\": $NEW, \"trend\": $TREND, \"last_updated\": $TS, \"history\": $NEW_HISTORY}" > rate.json
 
           echo "Курс обновлен: $OLD -> $NEW (тренд: $TREND)"
 
