@@ -4,7 +4,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BITAMD - курс крипты</title>
     <meta charset="utf-8">
-<style>
+    <style>
         body {
             font-family: Arial, sans-serif;
             text-align: center;
@@ -53,23 +53,29 @@
         button[type="submit"] {
             width: 100%;
         }
-    @media (max-width: 600px) {
-    body {
-        padding: 20px 10px;
-    }
-    .rate {
-        font-size: 36px;
-        word-break: break-word;
-    }
-    button {
-        width: 100%;
-        max-width: 300px;
-    }
-    .form-container {
-        width: 90%;
-        max-width: none;
-    }
-}
+
+        /* Адаптация для телефонов */
+        @media (max-width: 600px) {
+            body {
+                padding: 20px 10px;
+            }
+            .rate {
+                font-size: 28px;
+                white-space: nowrap;
+                overflow-x: auto;
+            }
+            button {
+                width: 100%;
+                max-width: 300px;
+            }
+            .form-container {
+                width: 90%;
+                max-width: none;
+            }
+            h1 {
+                font-size: 24px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -89,7 +95,7 @@
     <!-- Форма покупки -->
     <div id="buyForm" class="form-container" style="display: none;">
         <h3>💰 Заявка на покупку BITAMD</h3>
-        <form action="https://formspree.io/f/YOUR_FORM_ID" method="POST">
+        <form action="https://formspree.io/f/xvzywwzk" method="POST">
             <input type="hidden" name="type" value="purchase">
             <label>👤 Имя:</label><br>
             <input type="text" name="name" required placeholder="Твоё имя"><br><br>
