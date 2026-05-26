@@ -2,7 +2,7 @@ name: Обновление курса BITAMD
 
 on:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '0 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -25,16 +25,45 @@ jobs:
             OLD_RATE="5.00"
           fi
 
-          RANDOM_EVENT=$((RANDOM % 100 + 1))
+          RANDOM_EVENT=$((RANDOM % 200 + 1))
           NEW_RATE=$OLD_RATE
 
-          if [ $RANDOM_EVENT -le 80 ]; then
+          if [ $RANDOM_EVENT -le 180 ]; then
             CHANGE=$((RANDOM % 11 - 5))
+            CHANGE=$(echo "scale=1; $CHANGE / 10" | bc -l)
             NEW_RATE=$(echo "$OLD_RATE + $OLD_RATE * $CHANGE / 100" | bc -l)
-          elif [ $RANDOM_EVENT -le 95 ]; then
+          elif [ $RANDOM_EVENT -le 195 ]; then
             CHANGE=$((RANDOM % 41 - 20))
             NEW_RATE=$(echo "$OLD_RATE + $OLD_RATE * $CHANGE / 100" | bc -l)
-          elif [ $RANDOM_EVENT -le 97 ]; then
+          elif [ $RANDOM_EVENT -le 197 ]; then
+            NEW_RATE=$(echo "$OLD_RATE * 1.03" | bc -l)
+          elif [ $RANDOM_EVENT -le 199 ]; then
+            NEW_RATE=$(echo "$OLD_RATE * 0.97" | bc -l)
+          else
+            NEW_RATE=$(echo "$OLD_RATE * 2" | bc -l)
+          fi
+
+          NEW_RATE=$(printf "%.2f" $NEW_RATE)
+
+          if (( $(echo "$NEW_RATE < 0.30" | bc -l) )); then
+            NEW_RATE="0.30"
+          fi
+          if (( $(echo "$NEW_RATE > 1000" | bc -l) )); then
+            NEW_RATE="1000"
+          fi
+
+          TIMESTAMP=$(date +%s)
+          echo "{\"rate\": $NEW_RATE, \"last_updated\": $TIMESTAMP}" > rate.json
+
+          echo "Курс обновлен: $OLD_RATE -> $NEW_RATE"
+
+      - name: Отправить изменения
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add rate.json
+          git commit -m "Автообновление курса BITAMD" || echo "Нет изменений"
+          git push          elif [ $RANDOM_EVENT -le 97 ]; then
             NEW_RATE=$(echo "$OLD_RATE * 1.5" | bc -l)
           elif [ $RANDOM_EVENT -le 99 ]; then
             NEW_RATE=$(echo "$OLD_RATE * 0.67" | bc -l)
