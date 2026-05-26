@@ -21,7 +21,6 @@ jobs:
 
       - name: Update rate
         run: |
-          # Читаем старые данные
           if [ -f rate.json ]; then
             OLD=$(cat rate.json | jq -r '.rate')
             OLD_TREND=$(cat rate.json | jq -r '.trend // 0')
@@ -32,7 +31,6 @@ jobs:
             OLD_HISTORY="[]"
           fi
 
-          # Генерируем новый курс
           R=$((RANDOM % 100))
           if [ $R -lt 70 ]; then
             TREND=$OLD_TREND
@@ -58,14 +56,12 @@ jobs:
 
           TS=$(date +%s)
 
-          # Обновляем историю
           if [ "$OLD_HISTORY" = "[]" ]; then
             NEW_HISTORY="[$NEW]"
           else
             NEW_HISTORY=$(echo "$OLD_HISTORY" | jq --argjson new "$NEW" '. + [$new] | last(30)')
           fi
 
-          # Записываем новый файл
           echo "{\"rate\": $NEW, \"trend\": $TREND, \"last_updated\": $TS, \"history\": $NEW_HISTORY}" > rate.json
 
           echo "Курс обновлен: $OLD -> $NEW"
