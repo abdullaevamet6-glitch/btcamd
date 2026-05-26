@@ -1,4 +1,4 @@
-\name: BITAMD Advanced
+name: BITAMD Advanced
 
 on:
   schedule:
@@ -38,8 +38,7 @@ jobs:
             TREND=$((RANDOM % 21 - 10))
           fi
 
-          CHANGE=$TREND
-          NEW=$(echo "$OLD + $OLD * $CHANGE / 100" | bc -l)
+          NEW=$(echo "$OLD + $OLD * $TREND / 100" | bc -l)
 
           EVENT=$((RANDOM % 200))
           if [ $EVENT -eq 0 ]; then
@@ -56,8 +55,6 @@ jobs:
           fi
 
           TS=$(date +%s)
-
-          # Добавляем новый курс в историю и оставляем только последние 30 значений
           NEW_HISTORY=$(echo "$OLD_HISTORY" | jq --argjson new "$NEW" '. + [$new] | last(30)')
 
           echo "{\"rate\": $NEW, \"trend\": $TREND, \"last_updated\": $TS, \"history\": $NEW_HISTORY}" > rate.json
