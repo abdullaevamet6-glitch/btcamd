@@ -1,4 +1,4 @@
-name: Обновление курса BITAMD
+name: Обновление BITAMD каждый час
 
 on:
   schedule:
@@ -14,48 +14,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Установить jq и bc
-        run: sudo apt-get update && sudo apt-get install -y jq bc
-
-      - name: Создать или обновить курс
+      - name: Обновить курс
         run: |
           if [ -f rate.json ]; then
-            OLD_RATE=$(cat rate.json | jq -r '.rate')
+            OLD=$(cat rate.json | jq -r '.rate')
           else
-            OLD_RATE="5.00"
+            OLD="5.00"
           fi
 
-          RANDOM_EVENT=$((RANDOM % 200 + 1))
-          NEW_RATE=$OLD_RATE
+          # Случайное изменение: -2% .. +2% (шаг 0.5%)
+          CHANGE=$((RANDOM % 9 - 4))
+          CHANGE=$(echo "scale=2; $CHANGE / 2" | bc -l)
+          NEW=$(echo "$OLD + $OLD * $CHANGE / 100" | bc -l)
+          NEW=$(printf "%.2f" $NEW)
 
-          if [ $RANDOM_EVENT -le 180 ]; then
-            CHANGE=$((RANDOM % 11 - 5))
-            CHANGE=$(echo "scale=1; $CHANGE / 10" | bc -l)
-            NEW_RATE=$(echo "$OLD_RATE + $OLD_RATE * $CHANGE / 100" | bc -l)
-          elif [ $RANDOM_EVENT -le 195 ]; then
-            CHANGE=$((RANDOM % 41 - 20))
-            NEW_RATE=$(echo "$OLD_RATE + $OLD_RATE * $CHANGE / 100" | bc -l)
-          elif [ $RANDOM_EVENT -le 197 ]; then
-            NEW_RATE=$(echo "$OLD_RATE * 1.03" | bc -l)
-          elif [ $RANDOM_EVENT -le 199 ]; then
-            NEW_RATE=$(echo "$OLD_RATE * 0.97" | bc -l)
-          else
-            NEW_RATE=$(echo "$OLD_RATE * 2" | bc -l)
-          fi
-
-          NEW_RATE=$(printf "%.2f" $NEW_RATE)
-
-          if (( $(echo "$NEW_RATE < 0.30" | bc -l) )); then
-            NEW_RATE="0.30"
-          fi
-          if (( $(echo "$NEW_RATE > 1000" | bc -l) )); then
-            NEW_RATE="1000"
+          # Защита от дна
+          if (( $(echo "$NEW < 0.50" | bc -l) )); then
+            NEW="0.50"
           fi
 
           TIMESTAMP=$(date +%s)
-          echo "{\"rate\": $NEW_RATE, \"last_updated\": $TIMESTAMP}" > rate.json
+          echo "{\"rate\": $NEW, \"last_updated\": $TIMESTAMP}" > rate.json
 
-          echo "Курс обновлен: $OLD_RATE -> $NEW_RATE"
+          echo "Курс обновлен: $OLD -> $NEW"
 
       - name: Отправить изменения
         run: |
