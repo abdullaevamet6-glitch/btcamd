@@ -21,7 +21,7 @@ jobs:
 
       - name: Update rate
         run: |
-          # Загружаем старый файл, если есть
+          # Читаем старые данные
           if [ -f rate.json ]; then
             OLD=$(cat rate.json | jq -r '.rate')
             OLD_TREND=$(cat rate.json | jq -r '.trend // 0')
@@ -42,7 +42,6 @@ jobs:
 
           NEW=$(echo "$OLD + $OLD * $TREND / 100" | bc -l)
 
-          # Редкие события
           EVENT=$((RANDOM % 200))
           if [ $EVENT -eq 0 ]; then
             NEW=$(echo "$NEW * 2" | bc -l)
@@ -59,14 +58,14 @@ jobs:
 
           TS=$(date +%s)
 
-          # Обновляем историю (добавляем новый курс, оставляем 30 записей)
+          # Обновляем историю
           if [ "$OLD_HISTORY" = "[]" ]; then
             NEW_HISTORY="[$NEW]"
           else
             NEW_HISTORY=$(echo "$OLD_HISTORY" | jq --argjson new "$NEW" '. + [$new] | last(30)')
           fi
 
-          # Записываем новый rate.json
+          # Записываем новый файл
           echo "{\"rate\": $NEW, \"trend\": $TREND, \"last_updated\": $TS, \"history\": $NEW_HISTORY}" > rate.json
 
           echo "Курс обновлен: $OLD -> $NEW"
@@ -74,7 +73,7 @@ jobs:
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config.user.email "github-actions[bot]@users.noreply.github.com"
           git add rate.json
           git commit -m "auto update" || echo "no changes"
           git push
