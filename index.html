@@ -118,5 +118,77 @@
     });
     
 </script>
+    <!-- ========= НОВЫЙ КОД С КНОПКОЙ И ФОРМОЙ ========= -->
+    <button id="showFormBtn" style="background: #f7931a; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; cursor: pointer;">📩 Заказать BITAMD</button>
+
+    <div id="orderForm" style="display: none; margin-top: 20px; padding: 15px; border: 1px solid #333; border-radius: 10px;">
+        <h3>💰 Заявка на BITAMD</h3>
+        <form action="https://formspree.io/f/YOUR_FORM_ID" method="POST">
+            <label>👤 Имя:</label><br>
+            <input type="text" name="name" required placeholder="Твоё имя"><br><br>
+            <label>📧 Почта:</label><br>
+            <input type="email" name="email" required placeholder="Твоя почта"><br><br>
+            <label>💎 Количество BITAMD:</label><br>
+            <input type="number" name="amount" step="0.01" required placeholder="Сколько хочешь купить?"><br><br>
+            <label>💬 Дополнительно:</label><br>
+            <textarea name="message" rows="2" placeholder="Твой Telegram или другой контакт"></textarea><br><br>
+            <input type="text" name="_gotcha" style="display:none">
+            <button type="submit" style="background: #f7931a; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer;">📩 Отправить заявку</button>
+        </form>
+        <div id="formStatus" style="margin-top: 10px;"></div>
+    </div>
+
+    <script>
+        // Управление кнопкой
+        const showBtn = document.getElementById('showFormBtn');
+        const orderFormDiv = document.getElementById('orderForm');
+
+        showBtn.onclick = function() {
+            if (orderFormDiv.style.display === 'none') {
+                orderFormDiv.style.display = 'block';
+                showBtn.textContent = '❌ Скрыть заказ';
+            } else {
+                orderFormDiv.style.display = 'none';
+                showBtn.textContent = '📩 Заказать BITAMD';
+            }
+        }
+
+        // Отправка формы
+        const hiddenForm = document.querySelector('#orderForm form');
+        const statusDiv = document.getElementById('formStatus');
+
+        if (hiddenForm) {
+            hiddenForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                statusDiv.innerHTML = '⏳ Отправляем...';
+                statusDiv.style.color = 'gray';
+                const formData = new FormData(hiddenForm);
+                try {
+                    const response = await fetch(hiddenForm.action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    if (response.ok) {
+                        statusDiv.innerHTML = '✅ Заявка отправлена!';
+                        statusDiv.style.color = 'green';
+                        hiddenForm.reset();
+                        setTimeout(() => {
+                            statusDiv.innerHTML = '';
+                            orderFormDiv.style.display = 'none';
+                            showBtn.textContent = '📩 Заказать BITAMD';
+                        }, 2000);
+                    } else {
+                        throw new Error('Ошибка');
+                    }
+                } catch (error) {
+                    statusDiv.innerHTML = '❌ Ошибка, попробуй ещё раз';
+                    statusDiv.style.color = 'red';
+                }
+            });
+        }
+    </script>
+    <!-- ========= КОНЕЦ НОВОГО КОДА ========= -->
+    
 </body>
 </html>
