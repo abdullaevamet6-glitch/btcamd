@@ -1,4 +1,4 @@
-name: Hourly Update
+name: BITAMD Advanced
 
 on:
   schedule:
@@ -12,26 +12,51 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - name: Install jq and bc
+        run: sudo apt-get update && sudo apt-get install -y jq bc
       - name: Update rate
         run: |
           if [ -f rate.json ]; then
             OLD=$(cat rate.json | jq -r '.rate')
+            OLD_TREND=$(cat rate.json | jq -r '.trend // 0')
           else
             OLD=5.00
+            OLD_TREND=0
           fi
-          CHANGE=$((RANDOM % 9 - 4))
-          CHANGE=$(echo "scale=2; $CHANGE / 2" | bc -l)
+
+          # Тренд: 70% сохраняем направление
+          R=$((RANDOM % 100))
+          if [ $R -lt 70 ]; then
+            TREND=$OLD_TREND
+          else
+            TREND=$((RANDOM % 21 - 10))
+          fi
+
+          CHANGE=$TREND
           NEW=$(echo "$OLD + $OLD * $CHANGE / 100" | bc -l)
-          NEW=$(printf "%.2f" $NEW)
-          if (( $(echo "$NEW < 0.50" | bc -l) )); then
-            NEW=0.50
+
+          # Редкие события
+          EVENT=$((RANDOM % 200))
+          if [ $EVENT -eq 0 ]; then
+            NEW=$(echo "$NEW * 2" | bc -l)
+          elif [ $EVENT -eq 1 ]; then
+            NEW=$(echo "$NEW * 1.5" | bc -l)
+          elif [ $EVENT -eq 2 ]; then
+            NEW=$(echo "$NEW * 0.67" | bc -l)
           fi
+
+          NEW=$(printf "%.2f" $NEW)
+          if (( $(echo "$NEW < 0.30" | bc -l) )); then
+            NEW="0.30"
+          fi
+
           TS=$(date +%s)
-          echo "{\"rate\": $NEW, \"last_updated\": $TS}" > rate.json
+          echo "{\"rate\": $NEW, \"trend\": $TREND, \"last_updated\": $TS}" > rate.json
+
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config.user.email "github-actions[bot]@users.noreply.github.com"
           git add rate.json
           git commit -m "auto update" || echo "no changes"
           git push
