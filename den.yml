@@ -2,7 +2,7 @@ name: Обновление курса BITAMD
 
 on:
   schedule:
-    - cron: '0 21 * * *'   # 21:00 UTC = 00:00 MSK
+    - cron: '0 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -50,31 +50,6 @@ jobs:
           fi
           if (( $(echo "$NEW_RATE > 1000" | bc -l) )); then
             NEW_RATE="1000"
-          fi
-
-          TIMESTAMP=$(date +%s)
-          echo "{\"rate\": $NEW_RATE, \"last_updated\": $TIMESTAMP}" > rate.json
-
-          echo "Курс обновлен: $OLD_RATE -> $NEW_RATE"
-
-      - name: Отправить изменения
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add rate.json
-          git commit -m "Автообновление курса BITAMD" || echo "Нет изменений"
-          git push          elif [ $RANDOM_EVENT -le 97 ]; then
-            NEW_RATE=$(echo "$OLD_RATE * 1.5" | bc -l)
-          elif [ $RANDOM_EVENT -le 99 ]; then
-            NEW_RATE=$(echo "$OLD_RATE * 0.67" | bc -l)
-          else
-            NEW_RATE=$(echo "$OLD_RATE * 2" | bc -l)
-          fi
-
-          NEW_RATE=$(printf "%.2f" $NEW_RATE)
-
-          if (( $(echo "$NEW_RATE < 0.30" | bc -l) )); then
-            NEW_RATE="0.30"
           fi
 
           TIMESTAMP=$(date +%s)
