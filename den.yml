@@ -5,15 +5,21 @@ on:
     - cron: '0 * * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   update:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
+      # 1. Клонируем репозиторий, используя ТВОЙ личный токен (который работает)
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Install jq and bc
         run: sudo apt-get update && sudo apt-get install -y jq bc
+
       - name: Update rate
         run: |
           if [ -f rate.json ]; then
@@ -24,7 +30,6 @@ jobs:
             OLD_TREND=0
           fi
 
-          # Тренд: 70% сохраняем направление
           R=$((RANDOM % 100))
           if [ $R -lt 70 ]; then
             TREND=$OLD_TREND
@@ -35,7 +40,6 @@ jobs:
           CHANGE=$TREND
           NEW=$(echo "$OLD + $OLD * $CHANGE / 100" | bc -l)
 
-          # Редкие события (шанс ~1.5% каждое)
           EVENT=$((RANDOM % 200))
           if [ $EVENT -eq 0 ]; then
             NEW=$(echo "$NEW * 2" | bc -l)
@@ -54,7 +58,8 @@ jobs:
           echo "{\"rate\": $NEW, \"trend\": $TREND, \"last_updated\": $TS}" > rate.json
 
           echo "Курс обновлен: $OLD -> $NEW (тренд: $TREND)"
-      - name: Commit
+
+      - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
