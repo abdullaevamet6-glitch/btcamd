@@ -122,23 +122,16 @@
 
         function drawChart(history) {
             const ctx = document.getElementById('cryptoChart').getContext('2d');
-            
-            // Уничтожаем старый график, если он есть
-            if (chartInstance) {
-                chartInstance.destroy();
-            }
-            
-            // Если история пустая или нет данных, показываем заглушку
+            if (chartInstance) chartInstance.destroy();
+
             if (!history || history.length === 0) {
                 chartInstance = new Chart(ctx, {
                     type: 'line',
-                    data: { labels: ['Нет данных'], datasets: [{ label: 'Курс', data: [0] }] },
-                    options: { responsive: true, plugins: { legend: { labels: { color: 'white' } } } }
+                    data: { labels: ['Нет данных'], datasets: [{ label: 'Курс', data: [0] }] }
                 });
                 return;
             }
-            
-            // Создаём новый график
+
             chartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -147,46 +140,52 @@
                         label: 'Курс BITAMD (AMD)',
                         data: history,
                         borderColor: '#f7931a',
-                        backgroundColor: 'rgba(247, 147, 26, 0.1)',
-                        borderWidth: 2,
+                        backgroundColor: 'rgba(247, 147, 26, 0.05)',
+                        borderWidth: 2.5,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: '#f7931a',
+                        pointBorderColor: 'white',
+                        pointBorderWidth: 1.5,
                         fill: true,
-                        tension: 0.2
+                        tension: 0.2,
+                        cubicInterpolationMode: 'monotone'
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: true,
                     plugins: {
-                        legend: { position: 'top', labels: { color: 'white' } }
+                        legend: { position: 'top', labels: { color: 'white' } },
+                        tooltip: { mode: 'index', intersect: false }
                     },
                     scales: {
-                        y: { grid: { color: '#333' }, ticks: { color: 'white' } },
-                        x: { grid: { color: '#333' }, ticks: { color: 'white' } }
+                        y: { grid: { color: '#333' }, ticks: { color: 'white' }, title: { display: true, text: 'AMD', color: '#aaa' } },
+                        x: { grid: { color: '#333' }, ticks: { color: 'white' }, title: { display: true, text: 'Порядок обновлений', color: '#aaa' } }
                     }
                 }
             });
         }
 
-        // Загрузка данных
+        // Загружаем курс
         fetch('rate.json')
             .then(res => res.json())
             .then(data => {
                 document.getElementById('rate').innerHTML = '1 BITAMD = ' + parseFloat(data.rate).toFixed(2) + ' AMD';
                 document.getElementById('update').innerHTML = 'Обновлено: ' + new Date(data.last_updated * 1000).toLocaleString();
-                
-                // Используем историю, если есть, иначе создаём из текущего курса
-                let history = data.history || [];
-                if (history.length === 0 && data.rate) {
-                    history = [data.rate];
-                }
-                drawChart(history);
             })
+            .catch(err => console.error('Ошибка загрузки rate.json:', err));
+
+        // Загружаем историю для графика
+        fetch('history.json')
+            .then(res => res.json())
+            .then(history => drawChart(history))
             .catch(err => {
-                document.getElementById('rate').innerHTML = 'Ошибка загрузки';
-                console.error(err);
+                console.error('Ошибка загрузки history.json:', err);
+                drawChart([5.55]);
             });
 
-        // Логика для кнопок покупки/продажи
+        // Логика кнопок покупки/продажи
         const buyBtn = document.getElementById('showBuyBtn');
         const sellBtn = document.getElementById('showSellBtn');
         const buyFormDiv = document.getElementById('buyForm');
