@@ -1,41 +1,46 @@
-name: BITAMD Advanced
+name: Update History
 
 on:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '5 * * * *'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  update:
+  update-history:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install bc
-        run: sudo apt-get update && sudo apt-get install -y bc
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Update rate
+      - name: Add current rate to history
         run: |
-          OLD=$(jq -r '.rate' rate.json)
-          TREND=$((RANDOM % 21 - 10))
-          NEW=$(echo "$OLD + $OLD * $TREND / 100" | bc -l)
-          NEW=$(printf "%.2f" $NEW)
-          if (( $(echo "$NEW < 0.30" | bc -l) )); then
-            NEW="0.30"
+          CURRENT_RATE=$(jq -r '.rate' rate.json)
+          echo "Текущий курс: $CURRENT_RATE"
+
+          if [ -f history.json ]; then
+            OLD_HISTORY=$(cat history.json)
+            echo "Старая история: $OLD_HISTORY"
+          else
+            OLD_HISTORY="[]"
+            echo "history.json не найден, создаём новый"
           fi
-          TS=$(date +%s)
-          echo "{\"rate\": $NEW, \"last_updated\": $TS}" > rate.json
-          echo "Курс обновлен: $OLD -> $NEW"
+
+          # Добавляем новый курс
+          NEW_HISTORY=$(echo "$OLD_HISTORY" | jq --argjson new "$CURRENT_RATE" '. + [$new] | last(50)')
+          echo "$NEW_HISTORY" > history.json
+          echo "Новая история: $NEW_HISTORY"
 
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config.user.email "github-actions[bot]@users.noreply.github.com"
-          git add rate.json
-          git commit -m "auto update" || echo "no changes"
+          git add history.json
+          git commit -m "auto update history" || echo "no changes"
           git push
