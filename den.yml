@@ -16,57 +16,22 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install jq and bc
-        run: sudo apt-get update && sudo apt-get install -y jq bc
+      - name: Install bc
+        run: sudo apt-get update && sudo apt-get install -y bc
 
       - name: Update rate
         run: |
-          # Читаем старые данные
-          OLD_RATE=$(jq -r '.rate' rate.json)
-          OLD_TREND=$(jq -r '.trend // 0' rate.json)
-          OLD_HISTORY=$(jq -r '.history // []' rate.json)
-
-          # Генерируем новый курс
-          R=$((RANDOM % 100))
-          if [ $R -lt 70 ]; then
-            TREND=$OLD_TREND
-          else
-            TREND=$((RANDOM % 21 - 10))
+          OLD=$(jq -r '.rate' rate.json)
+          TREND=$((RANDOM % 21 - 10))
+          NEW=$(echo "$OLD + $OLD * $TREND / 100" | bc -l)
+          NEW=$(printf "%.2f" $NEW)
+          if (( $(echo "$NEW < 0.30" | bc -l) )); then
+            NEW="0.30"
           fi
-
-          NEW_RATE=$(echo "$OLD_RATE + $OLD_RATE * $TREND / 100" | bc -l)
-
-          # Редкие события
-          EVENT=$((RANDOM % 200))
-          if [ $EVENT -eq 0 ]; then
-            NEW_RATE=$(echo "$NEW_RATE * 2" | bc -l)
-          elif [ $EVENT -eq 1 ]; then
-            NEW_RATE=$(echo "$NEW_RATE * 1.5" | bc -l)
-          elif [ $EVENT -eq 2 ]; then
-            NEW_RATE=$(echo "$NEW_RATE * 0.67" | bc -l)
-          fi
-
-          NEW_RATE=$(printf "%.2f" $NEW_RATE)
-          if (( $(echo "$NEW_RATE < 0.30" | bc -l) )); then
-            NEW_RATE="0.30"
-          fi
-
           TS=$(date +%s)
-
-          # Добавляем новый курс в историю и оставляем 30 записей
-          NEW_HISTORY=$(echo "$OLD_HISTORY" | jq --argjson new "$NEW_RATE" '. + [$new] | last(30)')
-
-          # Сохраняем в файл
-          cat > rate.json <<EOF
-{
-  "rate": $NEW_RATE,
-  "trend": $TREND,
-  "last_updated": $TS,
-  "history": $NEW_HISTORY
-}
-EOF
-
-          echo "Курс обновлен: $OLD_RATE -> $NEW_RATE"
+          # Обновляем только rate и last_updated, history не трогаем
+          jq --argjson new "$NEW" --argjson ts "$TS" '.rate = $new | .last_updated = $ts' rate.json > tmp.json
+          mv tmp.json rate.json
 
       - name: Commit and push
         run: |
