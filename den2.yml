@@ -21,7 +21,7 @@ jobs:
 
       - name: Update rate and history
         run: |
-          # Читаем текущий курс
+          # Текущий курс
           OLD_RATE=$(jq -r '.rate' rate.json)
           echo "Старый курс: $OLD_RATE"
 
@@ -39,23 +39,22 @@ jobs:
           # Сохраняем новый курс в rate.json
           echo "{\"rate\": $NEW_RATE, \"last_updated\": $TS}" > rate.json
 
-          # --- Работа с историей ---
+          # --- Обновляем историю ---
           if [ -f history.json ]; then
             OLD_HISTORY=$(cat history.json)
-            echo "Старая история: $OLD_HISTORY"
           else
             OLD_HISTORY="[]"
-            echo "history.json не найден, создаём новый"
           fi
 
-          # Добавляем новый курс в конец массива
-          NEW_HISTORY=$(echo "$OLD_HISTORY" | jq --argjson new "$NEW_RATE" '. + [$new]')
-          
-          # Оставляем только последние 30 записей
-          NEW_HISTORY=$(echo "$NEW_HISTORY" | jq 'last(30)')
-          
-          echo "$NEW_HISTORY" > history.json
-          echo "Новая история: $NEW_HISTORY"
+          # Проверяем, не добавлен ли уже этот курс
+          LAST_VALUE=$(echo "$OLD_HISTORY" | jq 'last')
+          if [ "$LAST_VALUE" != "$NEW_RATE" ]; then
+            NEW_HISTORY=$(echo "$OLD_HISTORY" | jq --argjson new "$NEW_RATE" '. + [$new] | last(30)')
+            echo "$NEW_HISTORY" > history.json
+            echo "История обновлена: добавлен $NEW_RATE"
+          else
+            echo "Курс не изменился, история не обновлена"
+          fi
 
       - name: Commit and push
         run: |
