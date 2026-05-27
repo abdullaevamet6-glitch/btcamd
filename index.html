@@ -65,32 +65,19 @@
             });
         }
 
-        function updateHistory(rate) {
-            let history = JSON.parse(localStorage.getItem('bitamd_history') || '[]');
-            history.push(rate);
-            if (history.length > 30) history.shift(); // храним последние 30 значений
-            localStorage.setItem('bitamd_history', JSON.stringify(history));
-            drawChart(history);
-        }
-
         function refreshData() {
             fetch('rate.json?' + Date.now())
                 .then(res => res.json())
                 .then(data => {
-                    const rate = parseFloat(data.rate).toFixed(2);
-                    document.getElementById('rate').innerHTML = '1 BITAMD = ' + rate + ' AMD';
+                    document.getElementById('rate').innerHTML = '1 BITAMD = ' + parseFloat(data.rate).toFixed(2) + ' AMD';
                     document.getElementById('update').innerHTML = 'Обновлено: ' + new Date(data.last_updated * 1000).toLocaleString();
-                    
-                    // Добавляем курс в историю
-                    updateHistory(rate);
                 })
-                .catch(err => console.error('Ошибка загрузки rate.json:', err));
-        }
+                .catch(err => console.error('Ошибка обновления курса:', err));
 
-        // Загружаем историю при старте
-        const savedHistory = localStorage.getItem('bitamd_history');
-        if (savedHistory) {
-            drawChart(JSON.parse(savedHistory));
+            fetch('history.json?' + Date.now())
+                .then(res => res.json())
+                .then(history => drawChart(history))
+                .catch(err => console.error('Ошибка обновления истории:', err));
         }
 
         refreshData();
