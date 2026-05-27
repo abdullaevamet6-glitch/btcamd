@@ -16,19 +16,17 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install jq and bc
-        run: sudo apt-get update && sudo apt-get install -y jq bc
+      - name: Install bc
+        run: sudo apt-get update && sudo apt-get install -y bc
 
       - name: Update rate
         run: |
-          # Читаем старые данные (если файл существует)
+          # Читаем старый курс и историю (если есть)
           if [ -f rate.json ]; then
-            OLD=$(jq -r '.rate' rate.json)
-            OLD_TREND=$(jq -r '.trend // 0' rate.json)
-            OLD_HISTORY=$(jq -r '.history // []' rate.json)
+            OLD=$(grep -o '"rate":[0-9.]*' rate.json | head -1 | cut -d':' -f2)
+            OLD_HISTORY=$(grep -o '"history":\[[^\]]*\]' rate.json | head -1 | sed 's/"history"://')
           else
             OLD=5.00
-            OLD_TREND=0
             OLD_HISTORY="[]"
           fi
 
@@ -58,14 +56,16 @@ jobs:
 
           TS=$(date +%s)
 
-          # Обновляем историю
+          # Формируем новую историю (добавляем новый курс в конец)
           if [ "$OLD_HISTORY" = "[]" ]; then
             NEW_HISTORY="[$NEW]"
           else
-            NEW_HISTORY=$(echo "$OLD_HISTORY" | jq --argjson new "$NEW" '. + [$new] | last(30)')
+            # Убираем квадратные скобки, добавляем новый курс, обрезаем до 30
+            NEW_HISTORY=$(echo "$OLD_HISTORY" | sed 's/[][]//g' | tr ',' '\n' | tail -29 | tr '\n' ',' | sed 's/,$//')
+            NEW_HISTORY="[$NEW_HISTORY,$NEW]"
           fi
 
-          # Сохраняем в файл
+          # Записываем новый rate.json
           cat > rate.json <<EOF
 {
   "rate": $NEW,
