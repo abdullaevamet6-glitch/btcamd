@@ -21,8 +21,9 @@ jobs:
 
       - name: Update rate and history
         run: |
-          # Текущий курс
+          # Читаем текущий курс
           OLD_RATE=$(jq -r '.rate' rate.json)
+          echo "Старый курс: $OLD_RATE"
 
           # Генерируем новый курс
           TREND=$((RANDOM % 21 - 10))
@@ -31,23 +32,30 @@ jobs:
           if (( $(echo "$NEW_RATE < 0.30" | bc -l) )); then
             NEW_RATE="0.30"
           fi
+          echo "Новый курс: $NEW_RATE"
 
           TS=$(date +%s)
 
-          # Обновляем rate.json
+          # Сохраняем новый курс в rate.json
           echo "{\"rate\": $NEW_RATE, \"last_updated\": $TS}" > rate.json
 
-          # Обновляем историю
+          # --- Работа с историей ---
           if [ -f history.json ]; then
             OLD_HISTORY=$(cat history.json)
-            NEW_HISTORY=$(echo "$OLD_HISTORY" | jq --argjson new "$NEW_RATE" '. + [$new] | last(30)')
+            echo "Старая история: $OLD_HISTORY"
           else
-            NEW_HISTORY="[$NEW_RATE]"
+            OLD_HISTORY="[]"
+            echo "history.json не найден, создаём новый"
           fi
-          echo "$NEW_HISTORY" > history.json
 
-          echo "Курс обновлен: $OLD_RATE -> $NEW_RATE"
-          echo "История: $NEW_HISTORY"
+          # Добавляем новый курс в конец массива
+          NEW_HISTORY=$(echo "$OLD_HISTORY" | jq --argjson new "$NEW_RATE" '. + [$new]')
+          
+          # Оставляем только последние 30 записей
+          NEW_HISTORY=$(echo "$NEW_HISTORY" | jq 'last(30)')
+          
+          echo "$NEW_HISTORY" > history.json
+          echo "Новая история: $NEW_HISTORY"
 
       - name: Commit and push
         run: |
