@@ -1,46 +1,58 @@
-name: Update History
+name: BITAMD Advanced
 
 on:
   schedule:
-    - cron: '5 * * * *'
+    - cron: '0 * * * *'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  update-history:
+  update:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
+      - name: Install jq and bc
+        run: sudo apt-get update && sudo apt-get install -y jq bc
 
-      - name: Add current rate to history
+      - name: Update rate and history
         run: |
-          CURRENT_RATE=$(jq -r '.rate' rate.json)
-          echo "Текущий курс: $CURRENT_RATE"
+          # Текущий курс
+          OLD_RATE=$(jq -r '.rate' rate.json)
 
-          if [ -f history.json ]; then
-            OLD_HISTORY=$(cat history.json)
-            echo "Старая история: $OLD_HISTORY"
-          else
-            OLD_HISTORY="[]"
-            echo "history.json не найден, создаём новый"
+          # Генерируем новый курс
+          TREND=$((RANDOM % 21 - 10))
+          NEW_RATE=$(echo "$OLD_RATE + $OLD_RATE * $TREND / 100" | bc -l)
+          NEW_RATE=$(printf "%.2f" $NEW_RATE)
+          if (( $(echo "$NEW_RATE < 0.30" | bc -l) )); then
+            NEW_RATE="0.30"
           fi
 
-          # Добавляем новый курс
-          NEW_HISTORY=$(echo "$OLD_HISTORY" | jq --argjson new "$CURRENT_RATE" '. + [$new] | last(50)')
+          TS=$(date +%s)
+
+          # Обновляем rate.json
+          echo "{\"rate\": $NEW_RATE, \"last_updated\": $TS}" > rate.json
+
+          # Обновляем историю
+          if [ -f history.json ]; then
+            OLD_HISTORY=$(cat history.json)
+            NEW_HISTORY=$(echo "$OLD_HISTORY" | jq --argjson new "$NEW_RATE" '. + [$new] | last(30)')
+          else
+            NEW_HISTORY="[$NEW_RATE]"
+          fi
           echo "$NEW_HISTORY" > history.json
-          echo "Новая история: $NEW_HISTORY"
+
+          echo "Курс обновлен: $OLD_RATE -> $NEW_RATE"
+          echo "История: $NEW_HISTORY"
 
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config.user.email "github-actions[bot]@users.noreply.github.com"
-          git add history.json
-          git commit -m "auto update history" || echo "no changes"
+          git add rate.json history.json
+          git commit -m "auto update" || echo "no changes"
           git push
