@@ -16,22 +16,41 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install bc
-        run: sudo apt-get update && sudo apt-get install -y bc
+      - name: Install jq and bc
+        run: sudo apt-get update && sudo apt-get install -y jq bc
 
       - name: Update rate
         run: |
-          OLD=$(jq -r '.rate' rate.json)
+          # Читаем текущие данные
+          OLD_RATE=$(jq -r '.rate' rate.json)
+          OLD_HISTORY=$(jq -r '.history // []' rate.json)
+
+          # Генерируем новый курс
           TREND=$((RANDOM % 21 - 10))
-          NEW=$(echo "$OLD + $OLD * $TREND / 100" | bc -l)
-          NEW=$(printf "%.2f" $NEW)
-          if (( $(echo "$NEW < 0.30" | bc -l) )); then
-            NEW="0.30"
+          NEW_RATE=$(echo "$OLD_RATE + $OLD_RATE * $TREND / 100" | bc -l)
+          NEW_RATE=$(printf "%.2f" $NEW_RATE)
+          if (( $(echo "$NEW_RATE < 0.30" | bc -l) )); then
+            NEW_RATE="0.30"
           fi
+
           TS=$(date +%s)
-          # Обновляем только rate и last_updated, history не трогаем
-          jq --argjson new "$NEW" --argjson ts "$TS" '.rate = $new | .last_updated = $ts' rate.json > tmp.json
+
+          # Добавляем новый курс в историю и оставляем последние 30 значений
+          if [ "$OLD_HISTORY" = "[]" ]; then
+            NEW_HISTORY="[$NEW_RATE]"
+          else
+            NEW_HISTORY=$(echo "$OLD_HISTORY" | jq --argjson new "$NEW_RATE" '. + [$new] | last(30)')
+          fi
+
+          # Обновляем файл
+          jq --argjson rate "$NEW_RATE" \
+             --argjson ts "$TS" \
+             --argjson history "$NEW_HISTORY" \
+             '.rate = $rate | .last_updated = $ts | .history = $history' \
+             rate.json > tmp.json
           mv tmp.json rate.json
+
+          echo "Курс обновлен: $OLD_RATE -> $NEW_RATE"
 
       - name: Commit and push
         run: |
