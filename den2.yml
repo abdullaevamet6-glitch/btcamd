@@ -21,7 +21,7 @@ jobs:
 
       - name: Update rate
         run: |
-          # Читаем текущие данные
+          # Читаем старые данные
           OLD_RATE=$(jq -r '.rate' rate.json)
           OLD_HISTORY=$(jq -r '.history // []' rate.json)
 
@@ -42,7 +42,7 @@ jobs:
             NEW_HISTORY=$(echo "$OLD_HISTORY" | jq --argjson new "$NEW_RATE" '. + [$new] | last(30)')
           fi
 
-          # Обновляем файл
+          # Сохраняем в файл
           jq --argjson rate "$NEW_RATE" \
              --argjson ts "$TS" \
              --argjson history "$NEW_HISTORY" \
@@ -50,7 +50,7 @@ jobs:
              rate.json > tmp.json
           mv tmp.json rate.json
 
-          echo "Курс обновлен: $OLD_RATE -> $NEW_RATE"
+          echo "Курс обновлен: $OLD_RATE -> $NEW_RATE, история: $NEW_HISTORY"
 
       - name: Commit and push
         run: |
