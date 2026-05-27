@@ -29,8 +29,43 @@
     <button id="showBuyBtn">📩 Купить BITAMD</button>
     <button id="showSellBtn">🔄 Продать BITAMD</button>
 
-    <div id="buyForm" class="form-container" style="display: none;"><!-- формы --></div>
-    <div id="sellForm" class="form-container" style="display: none;"><!-- формы --></div>
+    <!-- Форма покупки -->
+    <div id="buyForm" class="form-container" style="display: none;">
+        <h3>💰 Заявка на покупку BITAMD</h3>
+        <form id="buyFormElem" action="https://formspree.io/f/xvzywwzk" method="POST">
+            <input type="hidden" name="type" value="purchase">
+            <label>👤 Имя:</label><br>
+            <input type="text" name="name" required placeholder="Твоё имя"><br><br>
+            <label>📧 Почта:</label><br>
+            <input type="email" name="email" required placeholder="Твоя почта"><br><br>
+            <label>💎 Количество BITAMD:</label><br>
+            <input type="number" name="amount" step="0.01" required placeholder="Сколько хочешь купить?"><br><br>
+            <label>💬 Дополнительно:</label><br>
+            <textarea name="message" rows="2" placeholder="Твой Telegram или другой контакт"></textarea><br><br>
+            <input type="text" name="_gotcha" style="display:none">
+            <button type="submit">📩 Отправить заявку</button>
+        </form>
+        <div id="buyStatus" style="margin-top: 10px;"></div>
+    </div>
+
+    <!-- Форма продажи -->
+    <div id="sellForm" class="form-container" style="display: none;">
+        <h3>💰 Заявка на продажу BITAMD</h3>
+        <form id="sellFormElem" action="https://formspree.io/f/xvzywwzk" method="POST">
+            <input type="hidden" name="type" value="sale">
+            <label>👤 Имя:</label><br>
+            <input type="text" name="name" required placeholder="Твоё имя"><br><br>
+            <label>📧 Почта:</label><br>
+            <input type="email" name="email" required placeholder="Твоя почта"><br><br>
+            <label>💎 Количество BITAMD:</label><br>
+            <input type="number" name="amount" step="0.01" required placeholder="Сколько хочешь продать?"><br><br>
+            <label>💬 Дополнительно:</label><br>
+            <textarea name="message" rows="2" placeholder="Твой Telegram или другой контакт"></textarea><br><br>
+            <input type="text" name="_gotcha" style="display:none">
+            <button type="submit">🔄 Отправить заявку</button>
+        </form>
+        <div id="sellStatus" style="margin-top: 10px;"></div>
+    </div>
 
     <script>
         let chartInstance = null;
@@ -79,6 +114,69 @@
                 .then(history => drawChart(history))
                 .catch(err => console.error('Ошибка обновления истории:', err));
         }
+
+        // Управление кнопками покупки/продажи
+        const buyBtn = document.getElementById('showBuyBtn');
+        const sellBtn = document.getElementById('showSellBtn');
+        const buyFormDiv = document.getElementById('buyForm');
+        const sellFormDiv = document.getElementById('sellForm');
+
+        buyBtn.onclick = () => {
+            buyFormDiv.style.display = 'block';
+            sellFormDiv.style.display = 'none';
+            buyBtn.textContent = '❌ Скрыть покупку';
+            sellBtn.textContent = '🔄 Продать BITAMD';
+        };
+
+        sellBtn.onclick = () => {
+            sellFormDiv.style.display = 'block';
+            buyFormDiv.style.display = 'none';
+            sellBtn.textContent = '❌ Скрыть продажу';
+            buyBtn.textContent = '📩 Купить BITAMD';
+        };
+
+        // Отправка форм
+        document.getElementById('buyFormElem').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const status = document.getElementById('buyStatus');
+            status.innerHTML = '⏳ Отправляем...';
+            const formData = new FormData(e.target);
+            try {
+                const res = await fetch(e.target.action, { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
+                if (res.ok) {
+                    status.innerHTML = '✅ Заявка отправлена!';
+                    e.target.reset();
+                    setTimeout(() => {
+                        status.innerHTML = '';
+                        buyFormDiv.style.display = 'none';
+                        buyBtn.textContent = '📩 Купить BITAMD';
+                    }, 2000);
+                } else throw new Error();
+            } catch {
+                status.innerHTML = '❌ Ошибка';
+            }
+        });
+
+        document.getElementById('sellFormElem').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const status = document.getElementById('sellStatus');
+            status.innerHTML = '⏳ Отправляем...';
+            const formData = new FormData(e.target);
+            try {
+                const res = await fetch(e.target.action, { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
+                if (res.ok) {
+                    status.innerHTML = '✅ Заявка отправлена!';
+                    e.target.reset();
+                    setTimeout(() => {
+                        status.innerHTML = '';
+                        sellFormDiv.style.display = 'none';
+                        sellBtn.textContent = '🔄 Продать BITAMD';
+                    }, 2000);
+                } else throw new Error();
+            } catch {
+                status.innerHTML = '❌ Ошибка';
+            }
+        });
 
         refreshData();
         setInterval(refreshData, 60000);
