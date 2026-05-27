@@ -21,9 +21,9 @@ jobs:
 
       - name: Update rate
         run: |
-          # Читаем старые данные
+          # Читаем текущий курс и историю
           OLD_RATE=$(jq -r '.rate' rate.json)
-          OLD_HISTORY=$(jq -r '.history // []' rate.json)
+          OLD_HISTORY=$(cat history.json)
 
           # Генерируем новый курс
           TREND=$((RANDOM % 21 - 10))
@@ -36,26 +36,18 @@ jobs:
           TS=$(date +%s)
 
           # Добавляем новый курс в историю и оставляем последние 30 значений
-          if [ "$OLD_HISTORY" = "[]" ]; then
-            NEW_HISTORY="[$NEW_RATE]"
-          else
-            NEW_HISTORY=$(echo "$OLD_HISTORY" | jq --argjson new "$NEW_RATE" '. + [$new] | last(30)')
-          fi
+          NEW_HISTORY=$(echo "$OLD_HISTORY" | jq --argjson new "$NEW_RATE" '. + [$new] | last(30)')
 
-          # Сохраняем в файл
-          jq --argjson rate "$NEW_RATE" \
-             --argjson ts "$TS" \
-             --argjson history "$NEW_HISTORY" \
-             '.rate = $rate | .last_updated = $ts | .history = $history' \
-             rate.json > tmp.json
-          mv tmp.json rate.json
+          # Сохраняем оба файла
+          echo "{\"rate\": $NEW_RATE, \"last_updated\": $TS}" > rate.json
+          echo "$NEW_HISTORY" > history.json
 
-          echo "Курс обновлен: $OLD_RATE -> $NEW_RATE, история: $NEW_HISTORY"
+          echo "Курс обновлен: $OLD_RATE -> $NEW_RATE"
 
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config.user.email "github-actions[bot]@users.noreply.github.com"
-          git add rate.json
+          git add rate.json history.json
           git commit -m "auto update" || echo "no changes"
           git push
