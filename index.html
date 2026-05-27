@@ -8,18 +8,19 @@
         body {
             font-family: Arial, sans-serif;
             text-align: center;
-            padding: 50px;
+            padding: 20px;
             background: black;
             color: white;
         }
         .rate {
-            font-size: 64px;
+            font-size: 48px;
             color: #f7931a;
             font-weight: bold;
-            margin: 30px 0;
+            margin: 20px 0;
         }
         .update {
             color: gray;
+            font-size: 12px;
         }
         button {
             background: #f7931a;
@@ -55,31 +56,14 @@
         }
         canvas {
             max-width: 100%;
-            margin-top: 30px;
-            background: #1a1a1a;
+            margin: 20px auto;
+            background: #0a0a0a;
             border-radius: 10px;
             padding: 10px;
         }
         @media (max-width: 600px) {
-            body {
-                padding: 20px 10px;
-            }
-            .rate {
-                font-size: 28px;
-                white-space: nowrap;
-                overflow-x: auto;
-            }
-            button {
-                width: 100%;
-                max-width: 300px;
-            }
-            .form-container {
-                width: 90%;
-                max-width: none;
-            }
-            h1 {
-                font-size: 24px;
-            }
+            body { padding: 10px; }
+            .rate { font-size: 32px; }
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -89,14 +73,10 @@
     <p>Симуляция криптовалюты</p>
     <div class="rate" id="rate">Загрузка...</div>
     <div class="update" id="update"></div>
-    <button onclick="location.reload()">Обновить курс</button>
-
-    <br><br>
+    <button onclick="location.reload()">🔄 Обновить курс</button>
 
     <h3>📈 График курса</h3>
     <canvas id="cryptoChart" width="400" height="200"></canvas>
-
-    <br><br>
 
     <button id="showBuyBtn">📩 Купить BITAMD</button>
     <button id="showSellBtn">🔄 Продать BITAMD</button>
@@ -138,9 +118,28 @@
     </div>
 
     <script>
+        let chartInstance = null;
+
         function drawChart(history) {
             const ctx = document.getElementById('cryptoChart').getContext('2d');
-            new Chart(ctx, {
+            
+            // Уничтожаем старый график, если он есть
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+            
+            // Если история пустая или нет данных, показываем заглушку
+            if (!history || history.length === 0) {
+                chartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: { labels: ['Нет данных'], datasets: [{ label: 'Курс', data: [0] }] },
+                    options: { responsive: true, plugins: { legend: { labels: { color: 'white' } } } }
+                });
+                return;
+            }
+            
+            // Создаём новый график
+            chartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: history.map((_, i) => i + 1),
@@ -156,6 +155,7 @@
                 },
                 options: {
                     responsive: true,
+                    maintainAspectRatio: true,
                     plugins: {
                         legend: { position: 'top', labels: { color: 'white' } }
                     },
@@ -167,15 +167,26 @@
             });
         }
 
+        // Загрузка данных
         fetch('rate.json')
             .then(res => res.json())
             .then(data => {
                 document.getElementById('rate').innerHTML = '1 BITAMD = ' + parseFloat(data.rate).toFixed(2) + ' AMD';
                 document.getElementById('update').innerHTML = 'Обновлено: ' + new Date(data.last_updated * 1000).toLocaleString();
-                if (data.history && data.history.length) drawChart(data.history);
+                
+                // Используем историю, если есть, иначе создаём из текущего курса
+                let history = data.history || [];
+                if (history.length === 0 && data.rate) {
+                    history = [data.rate];
+                }
+                drawChart(history);
             })
-            .catch(() => document.getElementById('rate').innerHTML = 'Ошибка загрузки');
+            .catch(err => {
+                document.getElementById('rate').innerHTML = 'Ошибка загрузки';
+                console.error(err);
+            });
 
+        // Логика для кнопок покупки/продажи
         const buyBtn = document.getElementById('showBuyBtn');
         const sellBtn = document.getElementById('showSellBtn');
         const buyFormDiv = document.getElementById('buyForm');
@@ -197,26 +208,31 @@
 
         function setupForm(formId, statusId) {
             const form = document.querySelector(`#${formId} form`);
-            const status = document.getElementById(statusId);
+            const statusDiv = document.getElementById(statusId);
             if (!form) return;
+
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                status.innerHTML = '⏳ Отправляем...';
-                const fd = new FormData(form);
+                statusDiv.innerHTML = '⏳ Отправляем...';
+                const formData = new FormData(form);
                 try {
-                    const res = await fetch(form.action, { method: 'POST', body: fd, headers: { 'Accept': 'application/json' } });
-                    if (res.ok) {
-                        status.innerHTML = '✅ Заявка отправлена!';
+                    const response = await fetch(form.action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    if (response.ok) {
+                        statusDiv.innerHTML = '✅ Заявка отправлена!';
                         form.reset();
                         setTimeout(() => {
-                            status.innerHTML = '';
+                            statusDiv.innerHTML = '';
                             document.getElementById(formId).style.display = 'none';
                             if (formId === 'buyForm') buyBtn.textContent = '📩 Купить BITAMD';
                             else sellBtn.textContent = '🔄 Продать BITAMD';
                         }, 2000);
                     } else throw new Error();
                 } catch {
-                    status.innerHTML = '❌ Ошибка';
+                    statusDiv.innerHTML = '❌ Ошибка';
                 }
             });
         }
