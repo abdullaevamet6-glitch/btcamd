@@ -16,19 +16,15 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install bc
-        run: sudo apt-get update && sudo apt-get install -y bc
+      - name: Install jq and bc
+        run: sudo apt-get update && sudo apt-get install -y jq bc
 
       - name: Update rate
         run: |
-          # Читаем старый курс и историю (если есть)
-          if [ -f rate.json ]; then
-            OLD=$(grep -o '"rate":[0-9.]*' rate.json | head -1 | cut -d':' -f2)
-            OLD_HISTORY=$(grep -o '"history":\[[^\]]*\]' rate.json | head -1 | sed 's/"history"://')
-          else
-            OLD=5.00
-            OLD_HISTORY="[]"
-          fi
+          # Читаем старые данные
+          OLD_RATE=$(jq -r '.rate' rate.json)
+          OLD_TREND=$(jq -r '.trend // 0' rate.json)
+          OLD_HISTORY=$(jq -r '.history // []' rate.json)
 
           # Генерируем новый курс
           R=$((RANDOM % 100))
@@ -38,44 +34,39 @@ jobs:
             TREND=$((RANDOM % 21 - 10))
           fi
 
-          NEW=$(echo "$OLD + $OLD * $TREND / 100" | bc -l)
+          NEW_RATE=$(echo "$OLD_RATE + $OLD_RATE * $TREND / 100" | bc -l)
 
+          # Редкие события
           EVENT=$((RANDOM % 200))
           if [ $EVENT -eq 0 ]; then
-            NEW=$(echo "$NEW * 2" | bc -l)
+            NEW_RATE=$(echo "$NEW_RATE * 2" | bc -l)
           elif [ $EVENT -eq 1 ]; then
-            NEW=$(echo "$NEW * 1.5" | bc -l)
+            NEW_RATE=$(echo "$NEW_RATE * 1.5" | bc -l)
           elif [ $EVENT -eq 2 ]; then
-            NEW=$(echo "$NEW * 0.67" | bc -l)
+            NEW_RATE=$(echo "$NEW_RATE * 0.67" | bc -l)
           fi
 
-          NEW=$(printf "%.2f" $NEW)
-          if (( $(echo "$NEW < 0.30" | bc -l) )); then
-            NEW="0.30"
+          NEW_RATE=$(printf "%.2f" $NEW_RATE)
+          if (( $(echo "$NEW_RATE < 0.30" | bc -l) )); then
+            NEW_RATE="0.30"
           fi
 
           TS=$(date +%s)
 
-          # Формируем новую историю (добавляем новый курс в конец)
-          if [ "$OLD_HISTORY" = "[]" ]; then
-            NEW_HISTORY="[$NEW]"
-          else
-            # Убираем квадратные скобки, добавляем новый курс, обрезаем до 30
-            NEW_HISTORY=$(echo "$OLD_HISTORY" | sed 's/[][]//g' | tr ',' '\n' | tail -29 | tr '\n' ',' | sed 's/,$//')
-            NEW_HISTORY="[$NEW_HISTORY,$NEW]"
-          fi
+          # Добавляем новый курс в историю и оставляем 30 записей
+          NEW_HISTORY=$(echo "$OLD_HISTORY" | jq --argjson new "$NEW_RATE" '. + [$new] | last(30)')
 
-          # Записываем новый rate.json
+          # Сохраняем в файл
           cat > rate.json <<EOF
 {
-  "rate": $NEW,
+  "rate": $NEW_RATE,
   "trend": $TREND,
   "last_updated": $TS,
   "history": $NEW_HISTORY
 }
 EOF
 
-          echo "Курс обновлен: $OLD -> $NEW"
+          echo "Курс обновлен: $OLD_RATE -> $NEW_RATE"
 
       - name: Commit and push
         run: |
