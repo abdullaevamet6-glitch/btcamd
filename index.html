@@ -29,8 +29,8 @@
     <button id="showBuyBtn">📩 Купить BITAMD</button>
     <button id="showSellBtn">🔄 Продать BITAMD</button>
 
-    <div id="buyForm" class="form-container" style="display: none;"><!-- формы такие же, как у тебя были --></div>
-    <div id="sellForm" class="form-container" style="display: none;"><!-- формы такие же, как у тебя были --></div>
+    <div id="buyForm" class="form-container" style="display: none;"><!-- формы --></div>
+    <div id="sellForm" class="form-container" style="display: none;"><!-- формы --></div>
 
     <script>
         let chartInstance = null;
@@ -80,10 +80,7 @@
                 .catch(err => console.error('Ошибка обновления истории:', err));
         }
 
-        // Первая загрузка
         refreshData();
-
-        // Автообновление каждые 60 секунд
         setInterval(refreshData, 60000);
     </script>
 </body>
