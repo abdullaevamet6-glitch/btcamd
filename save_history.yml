@@ -1,0 +1,49 @@
+name: Save History
+
+on:
+  schedule:
+    - cron: '10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  save:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Save current rate to history
+        run: |
+          CURRENT=$(jq -r '.rate' rate.json)
+          echo "Текущий курс: $CURRENT"
+
+          if [ -f history.json ]; then
+            OLD=$(cat history.json)
+          else
+            OLD="[]"
+          fi
+
+          # Проверяем, не добавлен ли уже этот курс в конец истории
+          LAST=$(echo "$OLD" | jq 'last')
+          if [ "$LAST" != "$CURRENT" ]; then
+            NEW=$(echo "$OLD" | jq --argjson val "$CURRENT" '. + [$val] | last(30)')
+            echo "$NEW" > history.json
+            echo "Добавлено: $CURRENT"
+          else
+            echo "Курс не изменился, ничего не добавляем"
+          fi
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config.user.email "github-actions[bot]@users.noreply.github.com"
+          git add history.json
+          git commit -m "save history" || echo "no changes"
+          git push
