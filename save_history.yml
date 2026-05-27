@@ -2,7 +2,7 @@ name: Save History
 
 on:
   schedule:
-    - cron: '10 * * * *'
+    - cron: '5 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -16,29 +16,23 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
-
       - name: Save current rate to history
         run: |
+          # Читаем текущий курс
           CURRENT=$(jq -r '.rate' rate.json)
           echo "Текущий курс: $CURRENT"
 
+          # Читаем старую историю, если есть
           if [ -f history.json ]; then
             OLD=$(cat history.json)
           else
             OLD="[]"
           fi
 
-          # Проверяем, не добавлен ли уже этот курс в конец истории
-          LAST=$(echo "$OLD" | jq 'last')
-          if [ "$LAST" != "$CURRENT" ]; then
-            NEW=$(echo "$OLD" | jq --argjson val "$CURRENT" '. + [$val] | last(30)')
-            echo "$NEW" > history.json
-            echo "Добавлено: $CURRENT"
-          else
-            echo "Курс не изменился, ничего не добавляем"
-          fi
+          # Добавляем текущий курс
+          NEW=$(echo "$OLD" | jq --argjson val "$CURRENT" '. + [$val]')
+          echo "$NEW" > history.json
+          echo "Добавлен курс: $CURRENT"
 
       - name: Commit and push
         run: |
