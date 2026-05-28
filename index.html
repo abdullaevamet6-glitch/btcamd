@@ -87,12 +87,16 @@
             background: #2a2a2a;
             color: white;
         }
-        canvas {
-            max-width: 100%;
-            margin: 20px auto;
-            background: #0a0a0a;
-            border-radius: 16px;
-            padding: 10px;
+        #bitamd-chart {
+            width: 100%;
+            height: 400px;
+            background-color: #131722;
+            border-radius: 12px;
+            margin: 20px 0;
+        }
+        body.light #bitamd-chart {
+            background-color: #ffffff;
+            border: 1px solid #dee2e6;
         }
         .ticker {
             background: #0a0a0a;
@@ -199,9 +203,10 @@
             .rate { font-size: 36px; }
             .container { padding: 0 10px; }
             .toast-message { font-size: 12px; white-space: nowrap; }
+            #bitamd-chart { height: 300px; }
         }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.js"></script>
 </head>
 <body>
 
@@ -224,7 +229,7 @@
 
     <div class="widget">
         <h3>📈 График курса</h3>
-        <canvas id="cryptoChart" width="400" height="200"></canvas>
+        <div id="bitamd-chart"></div>
         <div>📊 Рост за сегодня: <span id="dailyChange">0.00</span>%</div>
     </div>
 
@@ -266,7 +271,7 @@
         <p>Вы получите: <strong id="withdrawResult">0.00</strong> AMD</p>
     </div>
 
-    <!-- Промокоды (упрощённые, только уведомления) -->
+    <!-- Промокоды -->
     <div class="card">
         <h3>🎁 Промокод</h3>
         <p>Введи промокод — я получу уведомление и смогу проверить.</p>
@@ -330,6 +335,56 @@
     let clickCountTheme = 0;
     let coinSound = null;
     const RUB_PER_AMD = 10;
+
+    // --- Функция для отрисовки графика (Lightweight Charts) ---
+    function drawLightweightChart(history) {
+        const container = document.getElementById('bitamd-chart');
+        if (!container) return;
+        
+        // Очищаем контейнер
+        container.innerHTML = '';
+        
+        if (!history || history.length === 0) {
+            container.innerHTML = '<div style="text-align: center; padding: 20px;">Нет данных для графика</div>';
+            return;
+        }
+        
+        // Создаём график
+        const lwChart = LightweightCharts.createChart(container, {
+            layout: {
+                backgroundColor: document.body.classList.contains('light') ? '#ffffff' : '#131722',
+                textColor: document.body.classList.contains('light') ? '#212529' : 'rgba(255, 255, 255, 0.9)',
+            },
+            grid: {
+                vertLines: { color: document.body.classList.contains('light') ? '#e0e0e0' : '#2B2B43' },
+                horzLines: { color: document.body.classList.contains('light') ? '#e0e0e0' : '#2B2B43' },
+            },
+            crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+            rightPriceScale: { borderColor: document.body.classList.contains('light') ? '#e0e0e0' : '#2B2B43' },
+            timeScale: { borderColor: document.body.classList.contains('light') ? '#e0e0e0' : '#2B2B43' },
+            width: container.clientWidth,
+            height: 400,
+        });
+        
+        const lineSeries = lwChart.addLineSeries({
+            color: '#f7931a',
+            lineWidth: 2,
+            priceLineVisible: false,
+            lastValueVisible: false,
+        });
+        
+        // Преобразуем данные
+        const chartData = history.map((price, index) => ({
+            time: index + 1,
+            value: price
+        }));
+        
+        lineSeries.setData(chartData);
+        lwChart.timeScale().fitContent();
+        
+        // Сохраняем для возможного обновления при смене темы
+        window.currentLightweightChart = lwChart;
+    }
 
     // --- Таймер между ставками ---
     let betTimerSeconds = 0;
@@ -435,33 +490,6 @@
         }
     });
 
-    function drawChart(history) {
-        const ctx = document.getElementById('cryptoChart').getContext('2d');
-        if (chart) chart.destroy();
-        if (!history || history.length === 0) history = [5.17];
-        chart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: history.map((_, i) => i + 1),
-                datasets: [{
-                    label: 'Курс BITAMD (AMD)',
-                    data: history,
-                    borderColor: '#f7931a',
-                    backgroundColor: 'rgba(247, 147, 26, 0.05)',
-                    borderWidth: 2.5,
-                    pointRadius: 4,
-                    fill: true,
-                    tension: 0.2
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: { legend: { labels: { color: document.body.classList.contains('light') ? 'black' : 'white' } } },
-                scales: { y: { ticks: { color: document.body.classList.contains('light') ? 'black' : 'white' } }, x: { ticks: { color: document.body.classList.contains('light') ? 'black' : 'white' } } }
-            }
-        });
-    }
-
     function updateTimerDisplay() {
         const now = new Date();
         const nextUpdate = new Date(now);
@@ -509,12 +537,12 @@
                 document.getElementById('rubRateInline').innerText = rub;
                 updateEmojiByRateChange(rate, lastRate);
                 if (data.history && data.history.length) {
-                    drawChart(data.history);
+                    drawLightweightChart(data.history);
                     const firstRate = data.history[0];
                     const dailyChange = ((rate - firstRate) / firstRate * 100).toFixed(2);
                     document.getElementById('dailyChange').innerHTML = (dailyChange >= 0 ? `+${dailyChange}` : dailyChange);
-                } else {
-                    drawChart([rate]);
+                } else if (data.rate) {
+                    drawLightweightChart([data.rate]);
                 }
                 lastRate = rate;
                 updateWithdrawCalculator();
@@ -545,9 +573,16 @@
             document.body.classList.remove('light');
             localStorage.setItem('bitamd_theme', 'dark');
         }
+        // Обновляем график при смене темы
         fetch('rate.json?' + Date.now())
             .then(res => res.json())
-            .then(data => { if (data.history) drawChart(data.history); });
+            .then(data => {
+                if (data.history && data.history.length) {
+                    drawLightweightChart(data.history);
+                } else if (data.rate) {
+                    drawLightweightChart([data.rate]);
+                }
+            });
     }
     const savedTheme = localStorage.getItem('bitamd_theme');
     if (savedTheme === 'light') setTheme('light');
@@ -601,9 +636,9 @@
         }
     });
 
-    // Промокод (уведомление на почту)
+    // Промокод
     document.getElementById('promoBtn').onclick = async () => {
-        const input = document.getElementById('promoInput').value.trim();
+        const input = document.getElementById('promoInput').value.trim().toUpperCase();
         const msgDiv = document.getElementById('promoMessage');
         if (!input) {
             msgDiv.innerHTML = '❌ Введи промокод!';
