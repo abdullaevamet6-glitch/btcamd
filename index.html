@@ -269,7 +269,7 @@
     <!-- Промокоды -->
     <div class="card">
         <h3>🎁 Промокод</h3>
-        <p>Введи промокод — если он правильный, я получу уведомление.</p>
+        <p>Введи промокод — если он правильный, я получу уведомление. (Иногда промокоды выпадают случайно!)</p>
         <input type="text" id="promoInput" placeholder="Введи промокод" style="width: calc(100% - 20px);">
         <button id="promoBtn">🎟️ Активировать</button>
         <div id="promoMessage" style="margin-top: 10px; font-size: 14px;"></div>
@@ -325,6 +325,16 @@
 
     // --- СПИСОК ПРОМОКОДОВ ---
     const VALID_PROMO_CODES = ["BITAMD2025", "SALE50", "WELCOME", "FRIEND10", "MOON100", "SECRET99"];
+
+    // Функция случайного выпадения промокода (1% шанс)
+    function showRandomPromo() {
+        if (Math.random() < 0.01) {
+            const randomIndex = Math.floor(Math.random() * VALID_PROMO_CODES.length);
+            const randomCode = VALID_PROMO_CODES[randomIndex];
+            showToast(`🎁 Вам выпал промокод: ${randomCode}! Введите его в поле выше.`);
+            playCoin();
+        }
+    }
 
     let chart = null;
     let currentRate = 5.17;
@@ -479,12 +489,20 @@
         coinSound.play().catch(e => console.log("Звук заблокирован"));
     }
 
+    // Пасхалка на курс (5 кликов) + случайный промокод при клике
     document.getElementById('rate').addEventListener('click', () => {
         clickCount++;
         playCoin();
         if (clickCount === 5) {
             showToast('🎉 Вы нашли секрет! BITAMD — лучшая крипта! 🚀');
             clickCount = 0;
+        }
+        // Случайный промокод с шансом 1% при клике на курс
+        if (Math.random() < 0.01) {
+            const randomIndex = Math.floor(Math.random() * VALID_PROMO_CODES.length);
+            const randomCode = VALID_PROMO_CODES[randomIndex];
+            showToast(`🎁 Вам выпал промокод: ${randomCode}! Введите его в поле выше.`);
+            playCoin();
         }
     });
 
@@ -592,7 +610,7 @@
         statusDiv.innerHTML = '⏳ Отправка...';
         const jsonData = Object.fromEntries(formData.entries());
         try {
-            const response = await fetch(SCRIPT_URL, {
+            await fetch(SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { 'Content-Type': 'application/json' },
@@ -620,7 +638,6 @@
         const status = document.getElementById('buyStatus');
         const formData = new FormData(buyForm);
         await sendToScript(formData, status, buyForm);
-        // Таймер 10 минут
         localStorage.setItem('buy_last_send', Date.now());
         updateBuyTimer();
     });
@@ -708,13 +725,13 @@
         formData.append('amount', amount);
         formData.append('timestamp', new Date().toLocaleString());
         try {
-            const response = await fetch(SCRIPT_URL, {
+            await fetch(SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(Object.fromEntries(formData.entries()))
             });
-            betStatus.innerHTML = `✅ Ставка принята, ${name}! Вы предсказали, что курс ${direction === 'up' ? 'вырастет 📈' : 'упадёт 📉'} на ${amount} BITAMD. Результат узнаете через час.`;
+            betStatus.innerHTML = `✅ Ставка принята, ${name}! Вы предсказали, что курс ${direction === 'up' ? 'вырастет 📈' : 'упадёт 📉'} na ${amount} BITAMD. Результат узнаете через час.`;
             addBetToHistory(name, direction, amount);
             startBetTimer(60);
             betFormElement.reset();
@@ -747,7 +764,7 @@
             formData.append('type', 'promo');
             formData.append('code', input);
             formData.append('timestamp', new Date().toLocaleString());
-            const response = await fetch(SCRIPT_URL, {
+            await fetch(SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { 'Content-Type': 'application/json' },
@@ -779,15 +796,4 @@
         sellFormDiv.style.display = 'block';
         buyFormDiv.style.display = 'none';
         sellBtn.textContent = '❌ Скрыть продажу';
-        buyBtn.textContent = '📩 Купить BITAMD';
-        playCoin();
-    };
-
-    updateBuyTimer();
-    updateSellTimer();
-    loadRateAndUpdateHistory();
-    renderBetHistory();
-    updateWithdrawCalculator();
-</script>
-</body>
-</html>
+        buyBtn.textContent = '📩 Купить BITAMD
