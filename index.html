@@ -219,7 +219,7 @@
         </div>
         <div class="update" id="update"></div>
         <div class="rub-rate">💵 1 BITAMD ≈ <span id="rubRateInline">51.70</span> руб (курс 1 AMD = 10 руб)</div>
-        <div class="timer-widget" id="timerWidget">🕒 До обновления курса: --:--</div>
+        <div class="timer-widget" id="timerWidget">🕒 Следующее обновление: --:--</div>
         <button id="manualUpdateBtn">🔄 Обновить курс вручную</button>
     </div>
 
@@ -334,78 +334,35 @@
     const RUB_PER_AMD = 10;
     let rateHistory = [];
 
-    // --- Загрузка истории и курса из localStorage ---
-    function loadLocalData() {
-        const savedRate = localStorage.getItem('bitamd_rate');
-        const savedHistory = localStorage.getItem('bitamd_history');
-        
-        if (savedRate && !isNaN(parseFloat(savedRate))) {
-            currentRate = parseFloat(savedRate);
-        } else {
-            currentRate = 5.17;
-        }
-        
-        if (savedHistory) {
-            rateHistory = JSON.parse(savedHistory);
-        } else {
-            rateHistory = [5.17, 5.43, 5.78, 6.02, 6.34];
-        }
-        
-        document.getElementById('rate').innerHTML = '1 BITAMD = ' + currentRate.toFixed(2) + ' AMD';
-        document.getElementById('update').innerHTML = 'Последнее обновление: ' + new Date().toLocaleString();
-        
-        // Обновляем отображение в рублях
-        const rub = (currentRate * RUB_PER_AMD).toFixed(2);
-        document.getElementById('rubRateInline').innerText = rub;
-        document.getElementById('rubRate').innerText = rub;
-        
-        updateTicker(currentRate);
-        drawChart(rateHistory);
-        renderHistoryList(rateHistory);
-        lastRate = currentRate;
-    }
-
-    // --- Сохранение в localStorage ---
-    function saveLocalData(rate, history) {
-        localStorage.setItem('bitamd_rate', rate);
-        localStorage.setItem('bitamd_history', JSON.stringify(history));
-    }
-
-    // --- Добавление новой точки (только если курс изменился) ---
-    function addNewRate(rate, history) {
-        if (history.length === 0 || history[history.length - 1] !== rate) {
-            history.push(rate);
-            if (history.length > 30) history.shift();
-            saveLocalData(rate, history);
-            drawChart(history);
-            renderHistoryList(history);
-            return true;
-        }
-        return false;
-    }
-
-    // --- Ручное обновление курса ---
-    document.getElementById('manualUpdateBtn').onclick = () => {
-        let newRate = prompt('Введите новый курс BITAMD (например, 6.50):');
-        if (newRate && !isNaN(parseFloat(newRate))) {
-            newRate = parseFloat(parseFloat(newRate).toFixed(2));
-            if (addNewRate(newRate, rateHistory)) {
-                currentRate = newRate;
+    // --- Загрузка данных из rate.json ---
+    function loadDataFromJSON() {
+        fetch('rate.json?' + Date.now())
+            .then(res => res.json())
+            .then(data => {
+                currentRate = data.rate;
+                rateHistory = data.history || [currentRate];
+                if (rateHistory.length === 0) rateHistory = [currentRate];
+                
                 document.getElementById('rate').innerHTML = '1 BITAMD = ' + currentRate.toFixed(2) + ' AMD';
-                document.getElementById('update').innerHTML = 'Обновлено вручную: ' + new Date().toLocaleString();
+                document.getElementById('update').innerHTML = 'Обновлено: ' + new Date(data.last_updated * 1000).toLocaleString();
+                
                 const rub = (currentRate * RUB_PER_AMD).toFixed(2);
                 document.getElementById('rubRateInline').innerText = rub;
                 document.getElementById('rubRate').innerText = rub;
+                
                 updateTicker(currentRate);
-                updateEmojiByRateChange(currentRate, lastRate);
+                drawChart(rateHistory);
+                renderHistoryList(rateHistory);
                 lastRate = currentRate;
-                playCoin();
-                showToast('✅ Курс обновлён!');
-            } else {
-                showToast('⚠️ Курс не изменился, точка не добавлена.');
-            }
-        }
-    };
+                
+                // Обновляем калькулятор
+                updateWithdrawCalculator();
+            })
+            .catch(err => {
+                console.error('Ошибка загрузки rate.json:', err);
+                showToast('⚠️ Не удалось загрузить курс');
+            });
+    }
 
     // --- Отрисовка графика (Chart.js) ---
     function drawChart(history) {
@@ -436,7 +393,7 @@
         });
     }
 
-    // --- Отображение списка истории ---
+    // --- Отображение списка истории (просто список, не график) ---
     function renderHistoryList(history) {
         const container = document.getElementById('historyList');
         if (!container) return;
@@ -447,7 +404,7 @@
         container.innerHTML = history.slice().reverse().map(val => `<div>${val.toFixed(2)} AMD</div>`).join('');
     }
 
-    // --- Таймер до обновления (уже не нужно, оставим для совместимости) ---
+    // --- Обновление таймера до следующего обновления ---
     function updateTimerDisplay() {
         const now = new Date();
         const nextUpdate = new Date(now);
@@ -457,7 +414,7 @@
         const minutes = Math.floor(diffMs / 60000);
         const seconds = Math.floor((diffMs % 60000) / 1000);
         const timerWidget = document.getElementById('timerWidget');
-        if (timerWidget) timerWidget.innerHTML = `🕒 До автоматического обновления: ${minutes} мин ${seconds} сек`;
+        if (timerWidget) timerWidget.innerHTML = `🕒 До следующего обновления: ${minutes} мин ${seconds} сек`;
     }
     setInterval(updateTimerDisplay, 1000);
     updateTimerDisplay();
@@ -616,9 +573,8 @@
 
     // --- Калькулятор вывода ---
     function updateWithdrawCalculator() {
-        const rate = currentRate;
         const bitamd = parseFloat(document.getElementById('withdrawAmount').value) || 0;
-        const amd = (bitamd * rate).toFixed(2);
+        const amd = (bitamd * currentRate).toFixed(2);
         document.getElementById('withdrawResult').innerText = amd;
     }
     document.getElementById('calcWithdrawBtn').onclick = updateWithdrawCalculator;
@@ -752,7 +708,7 @@
     });
 
     // --- Инициализация ---
-    loadLocalData();
+    loadDataFromJSON();
     renderBetHistory();
     updateWithdrawCalculator();
 </script>
