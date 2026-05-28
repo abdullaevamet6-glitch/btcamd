@@ -182,6 +182,19 @@
             color: #aaa;
             margin-top: 5px;
         }
+        .history-list {
+            max-height: 150px;
+            overflow-y: auto;
+            text-align: left;
+            font-size: 12px;
+            background: #0a0a0a;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .history-list div {
+            border-bottom: 1px solid #333;
+            padding: 5px 0;
+        }
         @media (max-width: 600px) {
             .rate { font-size: 36px; }
             .container { padding: 0 10px; }
@@ -232,9 +245,25 @@
                 <option value="down">📉 Упадёт</option>
             </select>
             <input type="number" id="betAmount" step="0.01" placeholder="💰 Сумма ставки (BITAMD)" required>
-            <button type="submit">🚀 Сделать ставку</button>
+            <button type="submit" id="submitBetBtn">🚀 Сделать ставку</button>
         </form>
         <div id="betStatus" style="margin-top: 10px; font-size: 14px;"></div>
+        <div id="betTimer" style="margin-top: 10px; font-size: 12px; color: #f7931a;"></div>
+    </div>
+
+    <!-- История ставок -->
+    <div class="card">
+        <h3>📜 История моих ставок</h3>
+        <div id="betHistory" class="history-list">Пока нет ставок. Сделайте первую!</div>
+        <button id="clearHistoryBtn" style="margin-top: 10px; background: #555;">🗑️ Очистить историю</button>
+    </div>
+
+    <!-- Калькулятор вывода -->
+    <div class="card">
+        <h3>🧮 Калькулятор вывода (BITAMD → AMD)</h3>
+        <input type="number" id="withdrawAmount" step="0.01" placeholder="💎 Введите количество BITAMD" value="1">
+        <button id="calcWithdrawBtn">Рассчитать</button>
+        <p>Вы получите: <strong id="withdrawResult">0.00</strong> AMD</p>
     </div>
 
     <div style="margin: 20px 0;">
@@ -292,6 +321,84 @@
     let coinSound = null;
     const RUB_PER_AMD = 10;
 
+    // --- Таймер между ставками ---
+    let betTimerSeconds = 0;
+    let betTimerInterval = null;
+    const betSubmitBtn = document.getElementById('submitBetBtn');
+    const betTimerDiv = document.getElementById('betTimer');
+
+    function updateBetTimerDisplay() {
+        if (betTimerSeconds <= 0) {
+            betTimerDiv.innerHTML = '';
+            betSubmitBtn.disabled = false;
+            if (betTimerInterval) clearInterval(betTimerInterval);
+        } else {
+            betTimerDiv.innerHTML = `⏳ Следующую ставку можно сделать через ${betTimerSeconds} сек`;
+            betSubmitBtn.disabled = true;
+        }
+    }
+
+    function startBetTimer(seconds) {
+        if (betTimerInterval) clearInterval(betTimerInterval);
+        betTimerSeconds = seconds;
+        updateBetTimerDisplay();
+        betTimerInterval = setInterval(() => {
+            betTimerSeconds--;
+            updateBetTimerDisplay();
+            if (betTimerSeconds <= 0) {
+                clearInterval(betTimerInterval);
+            }
+        }, 1000);
+    }
+
+    // --- История ставок (localStorage) ---
+    let betHistory = JSON.parse(localStorage.getItem('bitamd_bet_history') || '[]');
+
+    function saveHistory() {
+        localStorage.setItem('bitamd_bet_history', JSON.stringify(betHistory));
+    }
+
+    function addBetToHistory(name, direction, amount, result = 'Ожидает результата') {
+        const time = new Date().toLocaleString();
+        betHistory.unshift({ time, name, direction, amount, result });
+        if (betHistory.length > 10) betHistory.pop();
+        saveHistory();
+        renderHistory();
+    }
+
+    function renderHistory() {
+        const container = document.getElementById('betHistory');
+        if (!betHistory.length) {
+            container.innerHTML = 'Пока нет ставок. Сделайте первую!';
+            return;
+        }
+        container.innerHTML = betHistory.map(bet => `
+            <div>
+                <b>${bet.time}</b><br>
+                👤 ${bet.name} | ${bet.direction === 'up' ? '📈 Вырастет' : '📉 Упадёт'} | 💰 ${bet.amount} BITAMD<br>
+                📌 ${bet.result}
+            </div>
+        `).join('');
+    }
+
+    document.getElementById('clearHistoryBtn').onclick = () => {
+        betHistory = [];
+        saveHistory();
+        renderHistory();
+        showToast('🗑️ История ставок очищена');
+        playCoin();
+    };
+
+    // --- Калькулятор вывода ---
+    function updateWithdrawCalculator() {
+        const rate = parseFloat(document.getElementById('rate').innerHTML.split('=')[1]) || 5.17;
+        const bitamd = parseFloat(document.getElementById('withdrawAmount').value) || 0;
+        const amd = (bitamd * rate).toFixed(2);
+        document.getElementById('withdrawResult').innerText = amd;
+    }
+    document.getElementById('calcWithdrawBtn').onclick = updateWithdrawCalculator;
+    document.getElementById('withdrawAmount').oninput = updateWithdrawCalculator;
+
     function showToast(message) {
         const toast = document.getElementById('toastMessage');
         toast.innerText = message;
@@ -308,7 +415,6 @@
         coinSound.play().catch(e => console.log("Звук заблокирован"));
     }
 
-    // Пасхалка на курс (5 кликов)
     document.getElementById('rate').addEventListener('click', () => {
         clickCount++;
         playCoin();
@@ -376,8 +482,6 @@
                 updateTicker(rate);
                 const rub = (rate * RUB_PER_AMD).toFixed(2);
                 document.getElementById('rubRateInline').innerText = rub;
-
-                // Эмодзи-реакция
                 const diff = rate - lastRate;
                 let emoji = '';
                 if (diff > 0.05) emoji = '🚀🚀🚀';
@@ -386,7 +490,6 @@
                 else if (diff < 0) emoji = '📉';
                 else emoji = '😐';
                 document.getElementById('rateEmoji').innerHTML = emoji;
-
                 if (data.history && data.history.length) {
                     drawChart(data.history);
                     const firstRate = data.history[0];
@@ -396,11 +499,11 @@
                     drawChart([rate]);
                 }
                 lastRate = rate;
+                updateWithdrawCalculator();
             })
             .catch(err => console.error('Ошибка загрузки rate.json:', err));
     }
 
-    // Динамический онлайн-счётчик (иллюзия реальных людей)
     let onlineCount = 3;
     setInterval(() => {
         let delta = Math.floor(Math.random() * 5) - 2;
@@ -410,14 +513,12 @@
         document.getElementById('onlineCount').innerText = onlineCount;
     }, 15000);
 
-    // Копирование ссылки
     document.getElementById('shareBtn').onclick = () => {
         navigator.clipboard.writeText(window.location.href);
         showToast('✅ Ссылка на сайт скопирована!');
         playCoin();
     };
 
-    // --- Тёмная/светлая тема с пасхалкой ---
     function setTheme(theme) {
         if (theme === 'light') {
             document.body.classList.add('light');
@@ -446,11 +547,14 @@
         playCoin();
     };
 
-    // Форма ставки
     const betForm = document.getElementById('betForm');
     const betStatus = document.getElementById('betStatus');
     betForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (betSubmitBtn.disabled) {
+            betStatus.innerHTML = '❌ Подождите перед следующей ставкой!';
+            return;
+        }
         const name = document.getElementById('betName').value.trim();
         const direction = document.getElementById('betDirection').value;
         const amount = parseFloat(document.getElementById('betAmount').value);
@@ -469,6 +573,8 @@
             const response = await fetch(BET_FORM_URL, { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
             if (response.ok) {
                 betStatus.innerHTML = `✅ Ставка принята, ${name}! Вы предсказали, что курс ${direction === 'up' ? 'вырастет 📈' : 'упадёт 📉'} на ${amount} BITAMD. Результат узнаете через час.`;
+                addBetToHistory(name, direction, amount);
+                startBetTimer(60);
                 betForm.reset();
                 playCoin();
             } else throw new Error();
@@ -477,7 +583,6 @@
         }
     });
 
-    // Кнопки покупки/продажи
     const buyBtn = document.getElementById('showBuyBtn');
     const sellBtn = document.getElementById('showSellBtn');
     const buyFormDiv = document.getElementById('buyForm');
@@ -544,6 +649,8 @@
 
     refreshData();
     setInterval(refreshData, 60000);
+    renderHistory();
+    updateWithdrawCalculator();
 </script>
 </body>
 </html>
