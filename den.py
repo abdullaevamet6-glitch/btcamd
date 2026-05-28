@@ -28,12 +28,14 @@ import json, random, time
 
 with open('rate.json', 'r') as f:
     data = json.load(f)
-    old_rate = data['rate']
-    old_history = data.get('history', [])
+
+old_rate = data['rate']
+old_history = data.get('history', [])
 
 trend = random.randint(-10, 10)
 new_rate = round(old_rate + old_rate * trend / 100, 2)
-if new_rate < 0.30: new_rate = 0.30
+if new_rate < 0.30:
+    new_rate = 0.30
 
 data['rate'] = new_rate
 data['last_updated'] = int(time.time())
@@ -44,7 +46,7 @@ data['history'] = old_history[-30:]
 with open('rate.json', 'w') as f:
     json.dump(data, f, indent=2)
 
-print(f'Курс обновлен: {old_rate} -> {new_rate}')
+print(f'✅ Курс обновлён: {old_rate} -> {new_rate}')
 "
 
       - name: Commit and push
