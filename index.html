@@ -177,6 +177,11 @@
         iframe {
             border-radius: 12px;
         }
+        .rub-rate {
+            font-size: 14px;
+            color: #aaa;
+            margin-top: 5px;
+        }
         @media (max-width: 600px) {
             .rate { font-size: 36px; }
             .container { padding: 0 10px; }
@@ -188,14 +193,18 @@
 <body>
 
 <div class="ticker">
-    <span>🚀 BITAMD: <span id="tickerRate">5.17</span> AMD | Изменение за час: <span id="tickerChange">0.00</span>%</span>
+    <span>🚀 BITAMD: <span id="tickerRate">5.17</span> AMD | Изменение за час: <span id="tickerChange">0.00</span>% | 💵 1 BITAMD ≈ <span id="rubRate">51.70</span> руб</span>
 </div>
 
 <div class="container">
     <div class="card" style="margin-top: 40px;">
         <h1>💰 BITAMD / AMD</h1>
-        <div class="rate" id="rate">5.17</div>
+        <div>
+            <span class="rate" id="rate">5.17</span>
+            <span id="rateEmoji" style="font-size: 36px; margin-left: 10px;"></span>
+        </div>
         <div class="update" id="update"></div>
+        <div class="rub-rate">💵 1 BITAMD ≈ <span id="rubRateInline">51.70</span> руб (курс 1 AMD = 10 руб)</div>
         <div class="timer-widget" id="timerWidget">🕒 До обновления курса: --:--</div>
         <button onclick="location.reload()">🔄 Обновить курс</button>
     </div>
@@ -215,14 +224,14 @@
     <!-- Мини-игра: Сделай ставку -->
     <div class="bet-card">
         <h3>🎲 Сделай ставку на курс!</h3>
-        <p>Предскажи, вырастет или упадёт BITAMD через час?</p>
+        <p>Предскажи, вырастет или упадёт BITAMD через час. Укажи сумму ставки в BITAMD.</p>
         <form id="betForm">
             <input type="text" id="betName" placeholder="👤 Твоё имя" required>
             <select id="betDirection" style="width: 100%; padding: 10px; margin: 8px 0;">
                 <option value="up">📈 Вырастет</option>
                 <option value="down">📉 Упадёт</option>
             </select>
-            <input type="number" id="betAmount" step="0.01" placeholder="💎 Ставка (BITAMD)" required>
+            <input type="number" id="betAmount" step="0.01" placeholder="💰 Сумма ставки (BITAMD)" required>
             <button type="submit">🚀 Сделать ставку</button>
         </form>
         <div id="betStatus" style="margin-top: 10px; font-size: 14px;"></div>
@@ -281,6 +290,7 @@
     let clickCount = 0;
     let clickCountTheme = 0;
     let coinSound = null;
+    const RUB_PER_AMD = 10;
 
     function showToast(message) {
         const toast = document.getElementById('toastMessage');
@@ -352,24 +362,40 @@
         const change = ((currentRate - lastRate) / lastRate * 100).toFixed(2);
         document.getElementById('tickerRate').innerText = currentRate.toFixed(2);
         document.getElementById('tickerChange').innerHTML = (change >= 0 ? `+${change}` : change);
-        lastRate = currentRate;
+        const rub = (currentRate * RUB_PER_AMD).toFixed(2);
+        document.getElementById('rubRate').innerText = rub;
     }
 
     function refreshData() {
         fetch('rate.json?' + Date.now())
             .then(res => res.json())
             .then(data => {
-                document.getElementById('rate').innerHTML = '1 BITAMD = ' + data.rate.toFixed(2) + ' AMD';
+                const rate = data.rate;
+                document.getElementById('rate').innerHTML = '1 BITAMD = ' + rate.toFixed(2) + ' AMD';
                 document.getElementById('update').innerHTML = 'Обновлено: ' + new Date(data.last_updated * 1000).toLocaleString();
-                updateTicker(data.rate);
+                updateTicker(rate);
+                const rub = (rate * RUB_PER_AMD).toFixed(2);
+                document.getElementById('rubRateInline').innerText = rub;
+
+                // Эмодзи-реакция
+                const diff = rate - lastRate;
+                let emoji = '';
+                if (diff > 0.05) emoji = '🚀🚀🚀';
+                else if (diff > 0) emoji = '📈';
+                else if (diff < -0.05) emoji = '💩💩💩';
+                else if (diff < 0) emoji = '📉';
+                else emoji = '😐';
+                document.getElementById('rateEmoji').innerHTML = emoji;
+
                 if (data.history && data.history.length) {
                     drawChart(data.history);
                     const firstRate = data.history[0];
-                    const dailyChange = ((data.rate - firstRate) / firstRate * 100).toFixed(2);
+                    const dailyChange = ((rate - firstRate) / firstRate * 100).toFixed(2);
                     document.getElementById('dailyChange').innerHTML = (dailyChange >= 0 ? `+${dailyChange}` : dailyChange);
                 } else {
-                    drawChart([data.rate]);
+                    drawChart([rate]);
                 }
+                lastRate = rate;
             })
             .catch(err => console.error('Ошибка загрузки rate.json:', err));
     }
@@ -442,7 +468,7 @@
         try {
             const response = await fetch(BET_FORM_URL, { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
             if (response.ok) {
-                betStatus.innerHTML = `✅ Ставка принята, ${name}! Вы предсказали, что курс ${direction === 'up' ? 'вырастет 📈' : 'упадёт 📉'} na ${amount} BITAMD. Результат узнаете через час.`;
+                betStatus.innerHTML = `✅ Ставка принята, ${name}! Вы предсказали, что курс ${direction === 'up' ? 'вырастет 📈' : 'упадёт 📉'} на ${amount} BITAMD. Результат узнаете через час.`;
                 betForm.reset();
                 playCoin();
             } else throw new Error();
