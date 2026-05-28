@@ -5,7 +5,7 @@
     <title>BITAMD - курс крипты</title>
     <meta charset="utf-8">
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background: black; color: white; }
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background: black; color: white; transition: background 0.3s, color 0.3s; }
         .rate { font-size: 48px; color: #f7931a; font-weight: bold; margin: 20px 0; }
         .update { color: gray; font-size: 12px; }
         button { background: #f7931a; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; font-weight: bold; }
@@ -13,11 +13,34 @@
         input, textarea { width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 10px; border-radius: 5px; border: 1px solid #555; background: #2a2a2a; color: white; }
         button[type="submit"] { width: 100%; }
         canvas { max-width: 100%; margin: 20px auto; background: #0a0a0a; border-radius: 10px; padding: 10px; }
+        .light { background: white; color: black; }
+        .light .form-container { background: #f0f0f0; border-color: #ccc; }
+        .light input, .light textarea { background: white; color: black; border-color: #ccc; }
         @media (max-width: 600px) { body { padding: 10px; } .rate { font-size: 32px; } }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
+
+    <!-- Тикер (бегущая строка) -->
+    <div style="position: fixed; top: 0; left: 0; right: 0; background: #0a0a0a; color: #f7931a; padding: 5px; overflow: hidden; white-space: nowrap; z-index: 1000;">
+        <div id="ticker" style="display: inline-block; animation: scrollTicker 20s linear infinite;">
+            📈 BITAMD: <span id="tickerRate">5.17</span> AMD | Изменение за час: <span id="tickerChange">0.00</span>%
+        </div>
+    </div>
+
+    <!-- Таймер до обновления -->
+    <div style="position: fixed; bottom: 10px; left: 10px; background: #1a1a1a; padding: 5px 10px; border-radius: 8px; font-size: 12px; color: white; z-index: 1000;">
+        🕒 Следующее обновление: <span id="updateTimer">--:--</span>
+    </div>
+
+    <style>
+        @keyframes scrollTicker {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+    </style>
+
     <h1>💰 BITAMD / AMD</h1>
     <div class="rate" id="rate">Загрузка...</div>
     <div class="update" id="update"></div>
@@ -31,6 +54,7 @@
         <button id="showSellBtn">🔄 Продать BITAMD</button>
     </div>
 
+    <!-- Форма покупки -->
     <div id="buyForm" class="form-container" style="display: none;">
         <h3>💰 Заявка на покупку BITAMD</h3>
         <form id="buyFormElem" action="https://formspree.io/f/xvzywwzk" method="POST">
@@ -45,6 +69,7 @@
         <div id="buyStatus"></div>
     </div>
 
+    <!-- Форма продажи -->
     <div id="sellForm" class="form-container" style="display: none;">
         <h3>💰 Заявка на продажу BITAMD</h3>
         <form id="sellFormElem" action="https://formspree.io/f/xvzywwzk" method="POST">
@@ -61,14 +86,12 @@
 
     <script>
         let chart = null;
+        let lastRate = 5.17;
 
         function drawChart(history) {
             const ctx = document.getElementById('cryptoChart').getContext('2d');
             if (chart) chart.destroy();
-            if (!history || history.length === 0) {
-                chart = new Chart(ctx, { type: 'line', data: { labels: ['Нет данных'], datasets: [{ label: 'Курс', data: [0] }] } });
-                return;
-            }
+            if (!history || history.length === 0) history = [5.17];
             chart = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -92,18 +115,38 @@
             });
         }
 
+        function updateTicker(currentRate) {
+            const change = ((currentRate - lastRate) / lastRate * 100).toFixed(2);
+            document.getElementById('tickerRate').innerText = currentRate.toFixed(2);
+            document.getElementById('tickerChange').innerHTML = (change >= 0 ? `+${change}` : change);
+            lastRate = currentRate;
+        }
+
+        function updateTimer() {
+            const now = new Date();
+            const nextUpdate = new Date(now);
+            nextUpdate.setMinutes(0, 0, 0);
+            nextUpdate.setHours(nextUpdate.getHours() + 1);
+            const diff = Math.floor((nextUpdate - now) / 1000);
+            const minutes = Math.floor(diff / 60);
+            const seconds = diff % 60;
+            document.getElementById('updateTimer').innerText = `${minutes} мин ${seconds} сек`;
+        }
+
         function refreshData() {
             fetch('rate.json?' + Date.now())
                 .then(res => res.json())
                 .then(data => {
                     document.getElementById('rate').innerHTML = '1 BITAMD = ' + data.rate.toFixed(2) + ' AMD';
                     document.getElementById('update').innerHTML = 'Обновлено: ' + new Date(data.last_updated * 1000).toLocaleString();
+                    updateTicker(data.rate);
                     if (data.history && data.history.length) drawChart(data.history);
                     else drawChart([data.rate]);
                 })
                 .catch(err => console.error('Ошибка загрузки rate.json:', err));
         }
 
+        // Управление кнопками
         const buyBtn = document.getElementById('showBuyBtn');
         const sellBtn = document.getElementById('showSellBtn');
         const buyFormDiv = document.getElementById('buyForm');
@@ -123,6 +166,7 @@
             buyBtn.textContent = '📩 Купить BITAMD';
         };
 
+        // Отправка форм
         document.getElementById('buyFormElem').addEventListener('submit', async (e) => {
             e.preventDefault();
             const status = document.getElementById('buyStatus');
@@ -167,6 +211,8 @@
 
         refreshData();
         setInterval(refreshData, 60000);
+        setInterval(updateTimer, 1000);
+        updateTimer();
     </script>
 </body>
 </html>
