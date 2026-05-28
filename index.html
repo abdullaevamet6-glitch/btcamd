@@ -8,7 +8,7 @@
         body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background: black; color: white; }
         .rate { font-size: 48px; color: #f7931a; font-weight: bold; margin: 20px 0; }
         .update { color: gray; font-size: 12px; }
-        button { background: #f7931a; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button { background: #f7931a; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; font-weight: bold; }
         .form-container { margin-top: 20px; padding: 15px; border: 1px solid #333; border-radius: 10px; background: #1a1a1a; text-align: left; max-width: 300px; margin-left: auto; margin-right: auto; }
         input, textarea { width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 10px; border-radius: 5px; border: 1px solid #555; background: #2a2a2a; color: white; }
         button[type="submit"] { width: 100%; }
@@ -26,26 +26,24 @@
     <h3>📈 График курса</h3>
     <canvas id="cryptoChart" width="400" height="200"></canvas>
 
-    <button id="showBuyBtn">📩 Купить BITAMD</button>
-    <button id="showSellBtn">🔄 Продать BITAMD</button>
+    <div style="margin: 20px 0;">
+        <button id="showBuyBtn">📩 Купить BITAMD</button>
+        <button id="showSellBtn">🔄 Продать BITAMD</button>
+    </div>
 
     <!-- Форма покупки -->
     <div id="buyForm" class="form-container" style="display: none;">
         <h3>💰 Заявка на покупку BITAMD</h3>
         <form id="buyFormElem" action="https://formspree.io/f/xvzywwzk" method="POST">
             <input type="hidden" name="type" value="purchase">
-            <label>👤 Имя:</label><br>
-            <input type="text" name="name" required placeholder="Твоё имя"><br><br>
-            <label>📧 Почта:</label><br>
-            <input type="email" name="email" required placeholder="Твоя почта"><br><br>
-            <label>💎 Количество BITAMD:</label><br>
-            <input type="number" name="amount" step="0.01" required placeholder="Сколько хочешь купить?"><br><br>
-            <label>💬 Дополнительно:</label><br>
-            <textarea name="message" rows="2" placeholder="Твой Telegram или другой контакт"></textarea><br><br>
+            <input type="text" name="name" placeholder="👤 Имя" required>
+            <input type="email" name="email" placeholder="📧 Email" required>
+            <input type="number" name="amount" step="0.01" placeholder="💎 Количество BITAMD" required>
+            <textarea name="message" rows="2" placeholder="💬 Telegram или другой контакт"></textarea>
             <input type="text" name="_gotcha" style="display:none">
             <button type="submit">📩 Отправить заявку</button>
         </form>
-        <div id="buyStatus" style="margin-top: 10px;"></div>
+        <div id="buyStatus"></div>
     </div>
 
     <!-- Форма продажи -->
@@ -53,31 +51,27 @@
         <h3>💰 Заявка на продажу BITAMD</h3>
         <form id="sellFormElem" action="https://formspree.io/f/xvzywwzk" method="POST">
             <input type="hidden" name="type" value="sale">
-            <label>👤 Имя:</label><br>
-            <input type="text" name="name" required placeholder="Твоё имя"><br><br>
-            <label>📧 Почта:</label><br>
-            <input type="email" name="email" required placeholder="Твоя почта"><br><br>
-            <label>💎 Количество BITAMD:</label><br>
-            <input type="number" name="amount" step="0.01" required placeholder="Сколько хочешь продать?"><br><br>
-            <label>💬 Дополнительно:</label><br>
-            <textarea name="message" rows="2" placeholder="Твой Telegram или другой контакт"></textarea><br><br>
+            <input type="text" name="name" placeholder="👤 Имя" required>
+            <input type="email" name="email" placeholder="📧 Email" required>
+            <input type="number" name="amount" step="0.01" placeholder="💎 Количество BITAMD" required>
+            <textarea name="message" rows="2" placeholder="💬 Telegram или другой контакт"></textarea>
             <input type="text" name="_gotcha" style="display:none">
             <button type="submit">🔄 Отправить заявку</button>
         </form>
-        <div id="sellStatus" style="margin-top: 10px;"></div>
+        <div id="sellStatus"></div>
     </div>
 
     <script>
-        let chartInstance = null;
+        let chart = null;
 
         function drawChart(history) {
             const ctx = document.getElementById('cryptoChart').getContext('2d');
-            if (chartInstance) chartInstance.destroy();
+            if (chart) chart.destroy();
             if (!history || history.length === 0) {
-                chartInstance = new Chart(ctx, { type: 'line', data: { labels: ['Нет данных'], datasets: [{ label: 'Курс', data: [0] }] } });
+                chart = new Chart(ctx, { type: 'line', data: { labels: ['Нет данных'], datasets: [{ label: 'Курс', data: [0] }] } });
                 return;
             }
-            chartInstance = new Chart(ctx, {
+            chart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: history.map((_, i) => i + 1),
@@ -104,18 +98,15 @@
             fetch('rate.json?' + Date.now())
                 .then(res => res.json())
                 .then(data => {
-                    document.getElementById('rate').innerHTML = '1 BITAMD = ' + parseFloat(data.rate).toFixed(2) + ' AMD';
+                    document.getElementById('rate').innerHTML = '1 BITAMD = ' + data.rate.toFixed(2) + ' AMD';
                     document.getElementById('update').innerHTML = 'Обновлено: ' + new Date(data.last_updated * 1000).toLocaleString();
+                    if (data.history && data.history.length) drawChart(data.history);
+                    else drawChart([data.rate]);
                 })
-                .catch(err => console.error('Ошибка обновления курса:', err));
-
-            fetch('history.json?' + Date.now())
-                .then(res => res.json())
-                .then(history => drawChart(history))
-                .catch(err => console.error('Ошибка обновления истории:', err));
+                .catch(err => console.error('Ошибка загрузки rate.json:', err));
         }
 
-        // Управление кнопками покупки/продажи
+        // Управление кнопками
         const buyBtn = document.getElementById('showBuyBtn');
         const sellBtn = document.getElementById('showSellBtn');
         const buyFormDiv = document.getElementById('buyForm');
@@ -140,9 +131,9 @@
             e.preventDefault();
             const status = document.getElementById('buyStatus');
             status.innerHTML = '⏳ Отправляем...';
-            const formData = new FormData(e.target);
+            const fd = new FormData(e.target);
             try {
-                const res = await fetch(e.target.action, { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
+                const res = await fetch(e.target.action, { method: 'POST', body: fd, headers: { 'Accept': 'application/json' } });
                 if (res.ok) {
                     status.innerHTML = '✅ Заявка отправлена!';
                     e.target.reset();
@@ -161,9 +152,9 @@
             e.preventDefault();
             const status = document.getElementById('sellStatus');
             status.innerHTML = '⏳ Отправляем...';
-            const formData = new FormData(e.target);
+            const fd = new FormData(e.target);
             try {
-                const res = await fetch(e.target.action, { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
+                const res = await fetch(e.target.action, { method: 'POST', body: fd, headers: { 'Accept': 'application/json' } });
                 if (res.ok) {
                     status.innerHTML = '✅ Заявка отправлена!';
                     e.target.reset();
