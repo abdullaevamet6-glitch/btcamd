@@ -1,53 +1,199 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>BITAMD - курс крипты</title>
-    <meta charset="utf-8">
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background: black; color: white; transition: background 0.3s, color 0.3s; }
-        .rate { font-size: 48px; color: #f7931a; font-weight: bold; margin: 20px 0; }
-        .update { color: gray; font-size: 12px; }
-        button { background: #f7931a; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; font-weight: bold; }
-        .form-container { margin-top: 20px; padding: 15px; border: 1px solid #333; border-radius: 10px; background: #1a1a1a; text-align: left; max-width: 300px; margin-left: auto; margin-right: auto; }
-        input, textarea { width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 10px; border-radius: 5px; border: 1px solid #555; background: #2a2a2a; color: white; }
-        button[type="submit"] { width: 100%; }
-        canvas { max-width: 100%; margin: 20px auto; background: #0a0a0a; border-radius: 10px; padding: 10px; }
-        .light { background: white; color: black; }
-        .light .form-container { background: #f0f0f0; border-color: #ccc; }
-        .light input, .light textarea { background: white; color: black; border-color: #ccc; }
-        @media (max-width: 600px) { body { padding: 10px; } .rate { font-size: 32px; } }
+        * {
+            transition: background-color 0.3s ease, color 0.2s ease, border-color 0.2s ease;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: center;
+            padding: 20px;
+            background: black;
+            color: white;
+            margin: 0;
+        }
+        body.light {
+            background: #f8f9fa;
+            color: #212529;
+        }
+        body.light .card, body.light .form-container, body.light .bet-card, body.light .widget {
+            background: white;
+            border-color: #dee2e6;
+        }
+        body.light input, body.light textarea {
+            background: #f8f9fa;
+            border-color: #ced4da;
+            color: #212529;
+        }
+        body.light button:not(.theme-btn) {
+            background: #f7931a;
+            color: white;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .rate {
+            font-size: 56px;
+            font-weight: bold;
+            color: #f7931a;
+            margin: 15px 0;
+            cursor: pointer;
+            display: inline-block;
+            padding: 0 20px;
+            border-radius: 20px;
+        }
+        .rate:active {
+            transform: scale(0.98);
+        }
+        .update {
+            font-size: 12px;
+            color: #6c757d;
+            margin-bottom: 20px;
+        }
+        button, .btn {
+            background: #f7931a;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px;
+            transition: 0.2s;
+        }
+        button:hover {
+            filter: brightness(0.9);
+            transform: translateY(-1px);
+        }
+        .card, .form-container, .bet-card, .widget {
+            background: #1a1a1a;
+            border-radius: 16px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid #333;
+        }
+        input, textarea {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 8px;
+            border: 1px solid #555;
+            background: #2a2a2a;
+            color: white;
+        }
+        canvas {
+            max-width: 100%;
+            margin: 20px auto;
+            background: #0a0a0a;
+            border-radius: 16px;
+            padding: 10px;
+        }
+        .ticker {
+            background: #0a0a0a;
+            color: #f7931a;
+            padding: 8px;
+            overflow: hidden;
+            white-space: nowrap;
+            font-size: 14px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+        .ticker span {
+            display: inline-block;
+            animation: scroll 20s linear infinite;
+        }
+        @keyframes scroll {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+        .fixed-bottom {
+            position: fixed;
+            bottom: 15px;
+            right: 15px;
+            z-index: 100;
+            display: flex;
+            gap: 10px;
+        }
+        .theme-btn, .share-btn {
+            background: #333;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 20px;
+        }
+        .online-counter {
+            background: #1a1a1a;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+        body.light .online-counter {
+            background: #e9ecef;
+        }
+        .timer-widget {
+            background: #1a1a1a;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            margin: 10px auto;
+            display: inline-block;
+        }
+        body.light .timer-widget {
+            background: #e9ecef;
+            color: #212529;
+        }
+        @media (max-width: 600px) {
+            .rate { font-size: 36px; }
+            .container { padding: 0 10px; }
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
-    <!-- Тикер (бегущая строка) -->
-    <div style="position: fixed; top: 0; left: 0; right: 0; background: #0a0a0a; color: #f7931a; padding: 5px; overflow: hidden; white-space: nowrap; z-index: 1000;">
-        <div id="ticker" style="display: inline-block; animation: scrollTicker 20s linear infinite;">
-            📈 BITAMD: <span id="tickerRate">5.17</span> AMD | Изменение за час: <span id="tickerChange">0.00</span>%
-        </div>
+<div class="ticker">
+    <span>🚀 BITAMD: <span id="tickerRate">5.17</span> AMD | Изменение за час: <span id="tickerChange">0.00</span>% &nbsp;&nbsp;|&nbsp;&nbsp; 📊 DOGE: 0.12 USD | ETH: 2800 USD</span>
+</div>
+
+<div class="container">
+    <div class="card" style="margin-top: 40px;">
+        <h1>💰 BITAMD / AMD</h1>
+        <div class="rate" id="rate">5.17</div>
+        <div class="update" id="update"></div>
+        <div class="timer-widget" id="timerWidget">🕒 До обновления курса: --:--</div>
+        <button onclick="location.reload()">🔄 Обновить курс</button>
     </div>
 
-    <!-- Таймер до обновления -->
-    <div style="position: fixed; bottom: 10px; left: 10px; background: #1a1a1a; padding: 5px 10px; border-radius: 8px; font-size: 12px; color: white; z-index: 1000;">
-        🕒 Следующее обновление: <span id="updateTimer">--:--</span>
+    <div class="widget">
+        <h3>📈 График курса</h3>
+        <canvas id="cryptoChart" width="400" height="200"></canvas>
+        <div>📊 Рост за сегодня: <span id="dailyChange">0.00</span>%</div>
     </div>
 
-    <style>
-        @keyframes scrollTicker {
-            0% { transform: translateX(100%); }
-            100% { transform: translateX(-100%); }
-        }
-    </style>
-
-    <h1>💰 BITAMD / AMD</h1>
-    <div class="rate" id="rate">Загрузка...</div>
-    <div class="update" id="update"></div>
-    <button onclick="location.reload()">🔄 Обновить курс</button>
-
-    <h3>📈 График курса</h3>
-    <canvas id="cryptoChart" width="400" height="200"></canvas>
+    <!-- Мини-игра: Сделай ставку -->
+    <div class="bet-card">
+        <h3>🎲 Сделай ставку на курс!</h3>
+        <p>Предскажи, вырастет или упадёт BITAMD через час?</p>
+        <form id="betForm">
+            <input type="text" id="betName" placeholder="👤 Твоё имя" required>
+            <select id="betDirection" style="width: 100%; padding: 10px; margin: 8px 0;">
+                <option value="up">📈 Вырастет</option>
+                <option value="down">📉 Упадёт</option>
+            </select>
+            <input type="number" id="betAmount" step="0.01" placeholder="💎 Ставка (BITAMD)" required>
+            <button type="submit">🚀 Сделать ставку</button>
+        </form>
+        <div id="betStatus" style="margin-top: 10px; font-size: 14px;"></div>
+    </div>
 
     <div style="margin: 20px 0;">
         <button id="showBuyBtn">📩 Купить BITAMD</button>
@@ -83,136 +229,245 @@
         </form>
         <div id="sellStatus"></div>
     </div>
+</div>
 
-    <script>
-        let chart = null;
-        let lastRate = 5.17;
+<div class="fixed-bottom">
+    <div class="online-counter">👥 <span id="onlineCount">3</span> онлайн</div>
+    <div class="share-btn" id="shareBtn">🔗</div>
+    <div class="theme-btn" id="themeToggle">🌓</div>
+</div>
 
-        function drawChart(history) {
-            const ctx = document.getElementById('cryptoChart').getContext('2d');
-            if (chart) chart.destroy();
-            if (!history || history.length === 0) history = [5.17];
-            chart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: history.map((_, i) => i + 1),
-                    datasets: [{
-                        label: 'Курс BITAMD (AMD)',
-                        data: history,
-                        borderColor: '#f7931a',
-                        backgroundColor: 'rgba(247, 147, 26, 0.05)',
-                        borderWidth: 2.5,
-                        pointRadius: 4,
-                        fill: true,
-                        tension: 0.2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: { legend: { labels: { color: 'white' } } },
-                    scales: { y: { ticks: { color: 'white' } }, x: { ticks: { color: 'white' } } }
+<script>
+    // --- ID формы для ставок (твой!) ---
+    const BET_FORM_URL = "https://formspree.io/f/xjgzlylz";
+
+    let chart = null;
+    let lastRate = 5.17;
+    let clickCount = 0;
+    let coinSound = null;
+
+    // Звук монетки
+    function playCoin() {
+        if (!coinSound) {
+            coinSound = new Audio('https://www.soundjay.com/misc/sounds/coin-drop-2.mp3');
+            coinSound.volume = 0.2;
+        }
+        coinSound.currentTime = 0;
+        coinSound.play().catch(e => console.log("Звук заблокирован"));
+    }
+
+    // Пасхалка
+    document.getElementById('rate').addEventListener('click', () => {
+        clickCount++;
+        playCoin();
+        if (clickCount === 5) {
+            alert('🎉 Вы нашли секрет! BITAMD — лучшая крипта! 🚀');
+            clickCount = 0;
+        }
+    });
+
+    // --- График ---
+    function drawChart(history) {
+        const ctx = document.getElementById('cryptoChart').getContext('2d');
+        if (chart) chart.destroy();
+        if (!history || history.length === 0) history = [5.17];
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: history.map((_, i) => i + 1),
+                datasets: [{
+                    label: 'Курс BITAMD (AMD)',
+                    data: history,
+                    borderColor: '#f7931a',
+                    backgroundColor: 'rgba(247, 147, 26, 0.05)',
+                    borderWidth: 2.5,
+                    pointRadius: 4,
+                    fill: true,
+                    tension: 0.2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { labels: { color: document.body.classList.contains('light') ? 'black' : 'white' } } },
+                scales: { y: { ticks: { color: document.body.classList.contains('light') ? 'black' : 'white' } }, x: { ticks: { color: document.body.classList.contains('light') ? 'black' : 'white' } } }
+            }
+        });
+    }
+
+    // --- Виджет времени до следующего обновления (до ближайшего часа) ---
+    function updateTimerDisplay() {
+        const now = new Date();
+        const nextUpdate = new Date(now);
+        nextUpdate.setMinutes(0, 0, 0);
+        nextUpdate.setHours(nextUpdate.getHours() + 1);
+        const diffMs = nextUpdate - now;
+        const minutes = Math.floor(diffMs / 60000);
+        const seconds = Math.floor((diffMs % 60000) / 1000);
+        document.getElementById('timerWidget').innerHTML = `🕒 До обновления курса: ${minutes} мин ${seconds} сек`;
+    }
+    setInterval(updateTimerDisplay, 1000);
+    updateTimerDisplay();
+
+    // --- Обновление данных с сайта ---
+    function updateTicker(currentRate) {
+        const change = ((currentRate - lastRate) / lastRate * 100).toFixed(2);
+        document.getElementById('tickerRate').innerText = currentRate.toFixed(2);
+        document.getElementById('tickerChange').innerHTML = (change >= 0 ? `+${change}` : change);
+        lastRate = currentRate;
+    }
+
+    function refreshData() {
+        fetch('rate.json?' + Date.now())
+            .then(res => res.json())
+            .then(data => {
+                const rateElem = document.getElementById('rate');
+                rateElem.innerHTML = '1 BITAMD = ' + data.rate.toFixed(2) + ' AMD';
+                document.getElementById('update').innerHTML = 'Обновлено: ' + new Date(data.last_updated * 1000).toLocaleString();
+                updateTicker(data.rate);
+                if (data.history && data.history.length) {
+                    drawChart(data.history);
+                    const firstRate = data.history[0];
+                    const dailyChange = ((data.rate - firstRate) / firstRate * 100).toFixed(2);
+                    document.getElementById('dailyChange').innerHTML = (dailyChange >= 0 ? `+${dailyChange}` : dailyChange);
+                } else {
+                    drawChart([data.rate]);
                 }
-            });
+            })
+            .catch(err => console.error('Ошибка загрузки rate.json:', err));
+    }
+
+    // --- Фейковый онлайн счётчик ---
+    setInterval(() => {
+        document.getElementById('onlineCount').innerText = Math.floor(Math.random() * 8) + 2;
+    }, 30000);
+
+    // --- Поделиться ---
+    document.getElementById('shareBtn').onclick = () => {
+        navigator.clipboard.writeText(window.location.href);
+        alert('✅ Ссылка на сайт скопирована!');
+        playCoin();
+    };
+
+    // --- Тёмная/светлая тема с сохранением ---
+    function setTheme(theme) {
+        if (theme === 'light') {
+            document.body.classList.add('light');
+            localStorage.setItem('bitamd_theme', 'light');
+        } else {
+            document.body.classList.remove('light');
+            localStorage.setItem('bitamd_theme', 'dark');
         }
+        fetch('rate.json?' + Date.now())
+            .then(res => res.json())
+            .then(data => { if (data.history) drawChart(data.history); });
+    }
+    const savedTheme = localStorage.getItem('bitamd_theme');
+    if (savedTheme === 'light') setTheme('light');
+    document.getElementById('themeToggle').onclick = () => {
+        if (document.body.classList.contains('light')) setTheme('dark');
+        else setTheme('light');
+        playCoin();
+    };
 
-        function updateTicker(currentRate) {
-            const change = ((currentRate - lastRate) / lastRate * 100).toFixed(2);
-            document.getElementById('tickerRate').innerText = currentRate.toFixed(2);
-            document.getElementById('tickerChange').innerHTML = (change >= 0 ? `+${change}` : change);
-            lastRate = currentRate;
+    // --- Форма ставки (отправка на твой Formspree) ---
+    const betForm = document.getElementById('betForm');
+    const betStatus = document.getElementById('betStatus');
+    betForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('betName').value.trim();
+        const direction = document.getElementById('betDirection').value;
+        const amount = parseFloat(document.getElementById('betAmount').value);
+        if (!name || isNaN(amount) || amount <= 0) {
+            betStatus.innerHTML = '❌ Введите корректное имя и сумму ставки!';
+            return;
         }
-
-        function updateTimer() {
-            const now = new Date();
-            const nextUpdate = new Date(now);
-            nextUpdate.setMinutes(0, 0, 0);
-            nextUpdate.setHours(nextUpdate.getHours() + 1);
-            const diff = Math.floor((nextUpdate - now) / 1000);
-            const minutes = Math.floor(diff / 60);
-            const seconds = diff % 60;
-            document.getElementById('updateTimer').innerText = `${minutes} мин ${seconds} сек`;
+        betStatus.innerHTML = '⏳ Отправка ставки...';
+        const formData = new FormData();
+        formData.append('type', 'bet');
+        formData.append('name', name);
+        formData.append('direction', direction === 'up' ? 'Вырастет' : 'Упадёт');
+        formData.append('amount', amount);
+        formData.append('timestamp', new Date().toLocaleString());
+        try {
+            const response = await fetch(BET_FORM_URL, { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
+            if (response.ok) {
+                betStatus.innerHTML = `✅ Ставка принята, ${name}! Вы предсказали, что курс ${direction === 'up' ? 'вырастет 📈' : 'упадёт 📉'} на ${amount} BITAMD. Результат узнаете через час.`;
+                betForm.reset();
+                playCoin();
+            } else throw new Error();
+        } catch (error) {
+            betStatus.innerHTML = '❌ Ошибка отправки ставки. Попробуйте позже.';
         }
+    });
 
-        function refreshData() {
-            fetch('rate.json?' + Date.now())
-                .then(res => res.json())
-                .then(data => {
-                    document.getElementById('rate').innerHTML = '1 BITAMD = ' + data.rate.toFixed(2) + ' AMD';
-                    document.getElementById('update').innerHTML = 'Обновлено: ' + new Date(data.last_updated * 1000).toLocaleString();
-                    updateTicker(data.rate);
-                    if (data.history && data.history.length) drawChart(data.history);
-                    else drawChart([data.rate]);
-                })
-                .catch(err => console.error('Ошибка загрузки rate.json:', err));
+    // --- Кнопки покупки/продажи ---
+    const buyBtn = document.getElementById('showBuyBtn');
+    const sellBtn = document.getElementById('showSellBtn');
+    const buyFormDiv = document.getElementById('buyForm');
+    const sellFormDiv = document.getElementById('sellForm');
+
+    buyBtn.onclick = () => {
+        buyFormDiv.style.display = 'block';
+        sellFormDiv.style.display = 'none';
+        buyBtn.textContent = '❌ Скрыть покупку';
+        sellBtn.textContent = '🔄 Продать BITAMD';
+        playCoin();
+    };
+    sellBtn.onclick = () => {
+        sellFormDiv.style.display = 'block';
+        buyFormDiv.style.display = 'none';
+        sellBtn.textContent = '❌ Скрыть продажу';
+        buyBtn.textContent = '📩 Купить BITAMD';
+        playCoin();
+    };
+
+    document.getElementById('buyFormElem').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const status = document.getElementById('buyStatus');
+        status.innerHTML = '⏳ Отправляем...';
+        const fd = new FormData(e.target);
+        try {
+            const res = await fetch(e.target.action, { method: 'POST', body: fd, headers: { 'Accept': 'application/json' } });
+            if (res.ok) {
+                status.innerHTML = '✅ Заявка отправлена!';
+                e.target.reset();
+                setTimeout(() => {
+                    status.innerHTML = '';
+                    buyFormDiv.style.display = 'none';
+                    buyBtn.textContent = '📩 Купить BITAMD';
+                    playCoin();
+                }, 2000);
+            } else throw new Error();
+        } catch {
+            status.innerHTML = '❌ Ошибка';
         }
+    });
 
-        // Управление кнопками
-        const buyBtn = document.getElementById('showBuyBtn');
-        const sellBtn = document.getElementById('showSellBtn');
-        const buyFormDiv = document.getElementById('buyForm');
-        const sellFormDiv = document.getElementById('sellForm');
+    document.getElementById('sellFormElem').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const status = document.getElementById('sellStatus');
+        status.innerHTML = '⏳ Отправляем...';
+        const fd = new FormData(e.target);
+        try {
+            const res = await fetch(e.target.action, { method: 'POST', body: fd, headers: { 'Accept': 'application/json' } });
+            if (res.ok) {
+                status.innerHTML = '✅ Заявка отправлена!';
+                e.target.reset();
+                setTimeout(() => {
+                    status.innerHTML = '';
+                    sellFormDiv.style.display = 'none';
+                    sellBtn.textContent = '🔄 Продать BITAMD';
+                    playCoin();
+                }, 2000);
+            } else throw new Error();
+        } catch {
+            status.innerHTML = '❌ Ошибка';
+        }
+    });
 
-        buyBtn.onclick = () => {
-            buyFormDiv.style.display = 'block';
-            sellFormDiv.style.display = 'none';
-            buyBtn.textContent = '❌ Скрыть покупку';
-            sellBtn.textContent = '🔄 Продать BITAMD';
-        };
-
-        sellBtn.onclick = () => {
-            sellFormDiv.style.display = 'block';
-            buyFormDiv.style.display = 'none';
-            sellBtn.textContent = '❌ Скрыть продажу';
-            buyBtn.textContent = '📩 Купить BITAMD';
-        };
-
-        // Отправка форм
-        document.getElementById('buyFormElem').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const status = document.getElementById('buyStatus');
-            status.innerHTML = '⏳ Отправляем...';
-            const fd = new FormData(e.target);
-            try {
-                const res = await fetch(e.target.action, { method: 'POST', body: fd, headers: { 'Accept': 'application/json' } });
-                if (res.ok) {
-                    status.innerHTML = '✅ Заявка отправлена!';
-                    e.target.reset();
-                    setTimeout(() => {
-                        status.innerHTML = '';
-                        buyFormDiv.style.display = 'none';
-                        buyBtn.textContent = '📩 Купить BITAMD';
-                    }, 2000);
-                } else throw new Error();
-            } catch {
-                status.innerHTML = '❌ Ошибка';
-            }
-        });
-
-        document.getElementById('sellFormElem').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const status = document.getElementById('sellStatus');
-            status.innerHTML = '⏳ Отправляем...';
-            const fd = new FormData(e.target);
-            try {
-                const res = await fetch(e.target.action, { method: 'POST', body: fd, headers: { 'Accept': 'application/json' } });
-                if (res.ok) {
-                    status.innerHTML = '✅ Заявка отправлена!';
-                    e.target.reset();
-                    setTimeout(() => {
-                        status.innerHTML = '';
-                        sellFormDiv.style.display = 'none';
-                        sellBtn.textContent = '🔄 Продать BITAMD';
-                    }, 2000);
-                } else throw new Error();
-            } catch {
-                status.innerHTML = '❌ Ошибка';
-            }
-        });
-
-        refreshData();
-        setInterval(refreshData, 60000);
-        setInterval(updateTimer, 1000);
-        updateTimer();
-    </script>
+    // Запуск обновления
+    refreshData();
+    setInterval(refreshData, 60000);
+</script>
 </body>
 </html>
