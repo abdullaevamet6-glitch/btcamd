@@ -331,10 +331,12 @@
     let clickCountTheme = 0;
     let coinSound = null;
     const RUB_PER_AMD = 10;
-    let rateHistory = []; // массив объектов { time, rate }
+    let rateHistory = [];
 
     function formatTime(timestamp) {
-        const date = new Date(timestamp);
+        if (!timestamp || isNaN(parseFloat(timestamp))) return 'неизвестно';
+        const date = new Date(parseFloat(timestamp));
+        if (isNaN(date.getTime())) return 'неизвестно';
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
@@ -346,6 +348,9 @@
                 const newRate = data.rate;
                 const now = Date.now();
                 let history = JSON.parse(localStorage.getItem('bitamd_history') || '[]');
+                
+                // Фильтруем только валидные записи
+                history = history.filter(item => item && typeof item.rate === 'number' && !isNaN(item.rate) && item.time && !isNaN(parseFloat(item.time)));
                 
                 if (history.length === 0) {
                     history = [{ time: now, rate: newRate }];
@@ -378,7 +383,6 @@
             });
     }
 
-    // --- Рост за сегодня (от первого значения в истории) ---
     function updateDailyChange() {
         if (rateHistory.length < 2) {
             document.getElementById('dailyChange').innerHTML = '0.00%';
@@ -389,7 +393,6 @@
         document.getElementById('dailyChange').innerHTML = (changePercent >= 0 ? `+${changePercent}` : changePercent) + '%';
     }
 
-    // --- Отрисовка графика ---
     function drawChart(history) {
         const ctx = document.getElementById('cryptoChart').getContext('2d');
         if (chart) chart.destroy();
