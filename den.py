@@ -26,23 +26,28 @@ jobs:
           python -c "
 import json, random, time
 
+# Открываем файл
 with open('rate.json', 'r') as f:
     data = json.load(f)
 
 old_rate = data['rate']
 old_history = data.get('history', [])
 
+# Генерируем новый курс (случайное изменение от -10% до +10%)
 trend = random.randint(-10, 10)
 new_rate = round(old_rate + old_rate * trend / 100, 2)
 if new_rate < 0.30:
     new_rate = 0.30
 
+# Обновляем данные
 data['rate'] = new_rate
 data['last_updated'] = int(time.time())
 
+# Добавляем в историю и оставляем последние 30 значений
 old_history.append(new_rate)
 data['history'] = old_history[-30:]
 
+# Сохраняем файл
 with open('rate.json', 'w') as f:
     json.dump(data, f, indent=2)
 
