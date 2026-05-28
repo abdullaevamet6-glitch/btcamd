@@ -21,11 +21,9 @@ jobs:
 
       - name: Update rate
         run: |
-          # Читаем старые данные
           OLD_RATE=$(jq -r '.rate' rate.json)
           OLD_HISTORY=$(jq -r '.history // []' rate.json)
 
-          # Генерируем новый курс
           TREND=$((RANDOM % 21 - 10))
           NEW_RATE=$(echo "$OLD_RATE + $OLD_RATE * $TREND / 100" | bc -l)
           NEW_RATE=$(printf "%.2f" $NEW_RATE)
@@ -35,20 +33,8 @@ jobs:
 
           TS=$(date +%s)
 
-          # Добавляем новый курс в историю (если он изменился)
-          if [ "$OLD_HISTORY" = "[]" ]; then
-            NEW_HISTORY="[$NEW_RATE]"
-          else
-            # Проверяем, не дублируется ли последнее значение
-            LAST=$(echo "$OLD_HISTORY" | jq 'last')
-            if [ "$LAST" != "$NEW_RATE" ]; then
-              NEW_HISTORY=$(echo "$OLD_HISTORY" | jq --argjson new "$NEW_RATE" '. + [$new] | last(30)')
-            else
-              NEW_HISTORY=$OLD_HISTORY
-            fi
-          fi
+          NEW_HISTORY=$(echo "$OLD_HISTORY" | jq --argjson new "$NEW_RATE" '. + [$new] | last(30)')
 
-          # Сохраняем в rate.json (с историей!)
           jq --argjson rate "$NEW_RATE" \
              --argjson ts "$TS" \
              --argjson history "$NEW_HISTORY" \
