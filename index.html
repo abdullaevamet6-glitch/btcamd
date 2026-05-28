@@ -31,7 +31,6 @@
         <button id="showSellBtn">🔄 Продать BITAMD</button>
     </div>
 
-    <!-- Форма покупки -->
     <div id="buyForm" class="form-container" style="display: none;">
         <h3>💰 Заявка на покупку BITAMD</h3>
         <form id="buyFormElem" action="https://formspree.io/f/xvzywwzk" method="POST">
@@ -46,7 +45,6 @@
         <div id="buyStatus"></div>
     </div>
 
-    <!-- Форма продажи -->
     <div id="sellForm" class="form-container" style="display: none;">
         <h3>💰 Заявка на продажу BITAMD</h3>
         <form id="sellFormElem" action="https://formspree.io/f/xvzywwzk" method="POST">
@@ -106,7 +104,6 @@
                 .catch(err => console.error('Ошибка загрузки rate.json:', err));
         }
 
-        // Управление кнопками
         const buyBtn = document.getElementById('showBuyBtn');
         const sellBtn = document.getElementById('showSellBtn');
         const buyFormDiv = document.getElementById('buyForm');
@@ -126,7 +123,6 @@
             buyBtn.textContent = '📩 Купить BITAMD';
         };
 
-        // Отправка форм
         document.getElementById('buyFormElem').addEventListener('submit', async (e) => {
             e.preventDefault();
             const status = document.getElementById('buyStatus');
