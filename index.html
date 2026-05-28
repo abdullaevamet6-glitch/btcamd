@@ -7,6 +7,7 @@
     <style>
         * {
             transition: background-color 0.3s ease, color 0.2s ease, border-color 0.2s ease;
+            box-sizing: border-box;
         }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -36,6 +37,7 @@
         .container {
             max-width: 800px;
             margin: 0 auto;
+            padding: 0 15px;
         }
         .rate {
             font-size: 56px;
@@ -77,7 +79,7 @@
             border: 1px solid #333;
         }
         input, textarea {
-            width: calc(100% - 20px);
+            width: 100%;
             padding: 10px;
             margin: 8px 0;
             border-radius: 8px;
@@ -101,13 +103,15 @@
             font-size: 14px;
             margin-bottom: 20px;
             border-radius: 8px;
+            width: 100%;
         }
         .ticker span {
             display: inline-block;
             animation: scroll 20s linear infinite;
+            padding-left: 100%;
         }
         @keyframes scroll {
-            0% { transform: translateX(100%); }
+            0% { transform: translateX(0); }
             100% { transform: translateX(-100%); }
         }
         .fixed-bottom {
@@ -128,12 +132,15 @@
             justify-content: center;
             cursor: pointer;
             font-size: 20px;
+            color: white;
         }
         .online-counter {
             background: #1a1a1a;
             padding: 5px 12px;
             border-radius: 20px;
             font-size: 12px;
+            display: flex;
+            align-items: center;
         }
         body.light .online-counter {
             background: #e9ecef;
@@ -151,9 +158,27 @@
             background: #e9ecef;
             color: #212529;
         }
+        /* Кастомное всплывающее окно (toast) */
+        .toast-message {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #f7931a;
+            color: black;
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-weight: bold;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            white-space: nowrap;
+        }
         @media (max-width: 600px) {
             .rate { font-size: 36px; }
             .container { padding: 0 10px; }
+            .toast-message { font-size: 12px; white-space: nowrap; }
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -161,7 +186,7 @@
 <body>
 
 <div class="ticker">
-    <span>🚀 BITAMD: <span id="tickerRate">5.17</span> AMD | Изменение за час: <span id="tickerChange">0.00</span>% &nbsp;&nbsp;|&nbsp;&nbsp; 📊 DOGE: 0.12 USD | ETH: 2800 USD</span>
+    <span>🚀 BITAMD: <span id="tickerRate">5.17</span> AMD | Изменение за час: <span id="tickerChange">0.00</span>%</span>
 </div>
 
 <div class="container">
@@ -237,8 +262,10 @@
     <div class="theme-btn" id="themeToggle">🌓</div>
 </div>
 
+<div id="toastMessage" class="toast-message"></div>
+
 <script>
-    // --- ID формы для ставок (твой!) ---
+    // --- ID формы для ставок ---
     const BET_FORM_URL = "https://formspree.io/f/xjgzlylz";
 
     let chart = null;
@@ -246,7 +273,13 @@
     let clickCount = 0;
     let coinSound = null;
 
-    // Звук монетки
+    function showToast(message) {
+        const toast = document.getElementById('toastMessage');
+        toast.innerText = message;
+        toast.style.opacity = '1';
+        setTimeout(() => { toast.style.opacity = '0'; }, 2000);
+    }
+
     function playCoin() {
         if (!coinSound) {
             coinSound = new Audio('https://www.soundjay.com/misc/sounds/coin-drop-2.mp3');
@@ -256,17 +289,15 @@
         coinSound.play().catch(e => console.log("Звук заблокирован"));
     }
 
-    // Пасхалка
     document.getElementById('rate').addEventListener('click', () => {
         clickCount++;
         playCoin();
         if (clickCount === 5) {
-            alert('🎉 Вы нашли секрет! BITAMD — лучшая крипта! 🚀');
+            showToast('🎉 Вы нашли секрет! BITAMD — лучшая крипта! 🚀');
             clickCount = 0;
         }
     });
 
-    // --- График ---
     function drawChart(history) {
         const ctx = document.getElementById('cryptoChart').getContext('2d');
         if (chart) chart.destroy();
@@ -294,7 +325,6 @@
         });
     }
 
-    // --- Виджет времени до следующего обновления (до ближайшего часа) ---
     function updateTimerDisplay() {
         const now = new Date();
         const nextUpdate = new Date(now);
@@ -308,7 +338,6 @@
     setInterval(updateTimerDisplay, 1000);
     updateTimerDisplay();
 
-    // --- Обновление данных с сайта ---
     function updateTicker(currentRate) {
         const change = ((currentRate - lastRate) / lastRate * 100).toFixed(2);
         document.getElementById('tickerRate').innerText = currentRate.toFixed(2);
@@ -320,8 +349,7 @@
         fetch('rate.json?' + Date.now())
             .then(res => res.json())
             .then(data => {
-                const rateElem = document.getElementById('rate');
-                rateElem.innerHTML = '1 BITAMD = ' + data.rate.toFixed(2) + ' AMD';
+                document.getElementById('rate').innerHTML = '1 BITAMD = ' + data.rate.toFixed(2) + ' AMD';
                 document.getElementById('update').innerHTML = 'Обновлено: ' + new Date(data.last_updated * 1000).toLocaleString();
                 updateTicker(data.rate);
                 if (data.history && data.history.length) {
@@ -336,19 +364,22 @@
             .catch(err => console.error('Ошибка загрузки rate.json:', err));
     }
 
-    // --- Фейковый онлайн счётчик ---
+    // Динамический онлайн-счётчик (иллюзия реальных людей)
+    let onlineCount = 3;
     setInterval(() => {
-        document.getElementById('onlineCount').innerText = Math.floor(Math.random() * 8) + 2;
-    }, 30000);
+        let delta = Math.floor(Math.random() * 5) - 2; // -2..2
+        onlineCount += delta;
+        if (onlineCount < 1) onlineCount = 1;
+        if (onlineCount > 12) onlineCount = 12;
+        document.getElementById('onlineCount').innerText = onlineCount;
+    }, 15000);
 
-    // --- Поделиться ---
     document.getElementById('shareBtn').onclick = () => {
         navigator.clipboard.writeText(window.location.href);
-        alert('✅ Ссылка на сайт скопирована!');
+        showToast('✅ Ссылка на сайт скопирована!');
         playCoin();
     };
 
-    // --- Тёмная/светлая тема с сохранением ---
     function setTheme(theme) {
         if (theme === 'light') {
             document.body.classList.add('light');
@@ -369,7 +400,6 @@
         playCoin();
     };
 
-    // --- Форма ставки (отправка на твой Formspree) ---
     const betForm = document.getElementById('betForm');
     const betStatus = document.getElementById('betStatus');
     betForm.addEventListener('submit', async (e) => {
@@ -400,7 +430,6 @@
         }
     });
 
-    // --- Кнопки покупки/продажи ---
     const buyBtn = document.getElementById('showBuyBtn');
     const sellBtn = document.getElementById('showSellBtn');
     const buyFormDiv = document.getElementById('buyForm');
@@ -465,7 +494,6 @@
         }
     });
 
-    // Запуск обновления
     refreshData();
     setInterval(refreshData, 60000);
 </script>
