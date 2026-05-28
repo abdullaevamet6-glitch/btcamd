@@ -266,19 +266,70 @@
         <p>Вы получите: <strong id="withdrawResult">0.00</strong> AMD</p>
     </div>
 
-    <!-- Промокоды -->
+        <!-- Промокоды -->
     <div class="card">
         <h3>🎁 Промокод</h3>
-        <p>Введи промокод — я получу уведомление и смогу проверить.</p>
+        <p>Введи промокод — если он правильный, я получу уведомление.</p>
         <input type="text" id="promoInput" placeholder="Введи промокод" style="width: calc(100% - 20px);">
         <button id="promoBtn">🎟️ Активировать</button>
         <div id="promoMessage" style="margin-top: 10px; font-size: 14px;"></div>
     </div>
 
-    <div style="margin: 20px 0;">
-        <button id="showBuyBtn">📩 Купить BITAMD</button>
-        <button id="showSellBtn">🔄 Продать BITAMD</button>
-    </div>
+<script>
+    // --- СПИСОК ДОПУСТИМЫХ ПРОМОКОДОВ (добавь свои) ---
+    const validPromoCodes = [
+        "BITAMD2025",
+        "SALE50",
+        "WELCOME",
+        "FRIEND10",
+        "MOON100",
+        "SECRET99"
+    ];
+
+    document.getElementById('promoBtn').onclick = async () => {
+        const input = document.getElementById('promoInput').value.trim().toUpperCase();
+        const msgDiv = document.getElementById('promoMessage');
+        
+        if (!input) {
+            msgDiv.innerHTML = '❌ Введи промокод!';
+            return;
+        }
+        
+        // Проверка, есть ли код в списке разрешённых
+        if (!validPromoCodes.includes(input)) {
+            msgDiv.innerHTML = '❌ Неверный промокод!';
+            return;
+        }
+        
+        // Проверка, не активирован ли этот код уже в этом браузере (опционально)
+        const used = JSON.parse(localStorage.getItem('used_promocodes') || '[]');
+        if (used.includes(input)) {
+            msgDiv.innerHTML = '⚠️ Ты уже активировал этот промокод!';
+            return;
+        }
+        
+        msgDiv.innerHTML = '⏳ Отправка...';
+        try {
+            const formData = new FormData();
+            formData.append('type', 'promo');
+            formData.append('code', input);
+            formData.append('timestamp', new Date().toLocaleString());
+            
+            const response = await fetch(PROMO_FORM_URL, { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
+            if (response.ok) {
+                msgDiv.innerHTML = '✅ Промокод активирован! Спасибо.';
+                used.push(input);
+                localStorage.setItem('used_promocodes', JSON.stringify(used));
+                document.getElementById('promoInput').value = '';
+                playCoin();
+            } else {
+                throw new Error();
+            }
+        } catch (error) {
+            msgDiv.innerHTML = '❌ Ошибка активации. Попробуйте позже.';
+        }
+    };
+</script>
 
     <!-- Форма покупки -->
     <div id="buyForm" class="form-container" style="display: none;">
