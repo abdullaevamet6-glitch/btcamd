@@ -220,7 +220,7 @@
         <div class="update" id="update"></div>
         <div class="rub-rate">💵 1 BITAMD ≈ <span id="rubRateInline">51.70</span> руб (курс 1 AMD = 10 руб)</div>
         <div class="timer-widget" id="timerWidget">🕒 До обновления курса: --:--</div>
-        <button onclick="location.reload()">🔄 Обновить курс</button>
+        <button id="manualUpdateBtn">🔄 Обновить курс вручную</button>
     </div>
 
     <div class="widget">
@@ -321,125 +321,97 @@
 <div id="toastMessage" class="toast-message"></div>
 
 <script>
-    // --- ID формы для ставок ---
+    // --- ID формы для ставок и промокодов ---
     const BET_FORM_URL = "https://formspree.io/f/xjgzlylz";
     const PROMO_FORM_URL = "https://formspree.io/f/xlgvznwl";
 
     let chart = null;
+    let currentRate = 5.17;
     let lastRate = 5.17;
     let clickCount = 0;
     let clickCountTheme = 0;
     let coinSound = null;
     const RUB_PER_AMD = 10;
+    let rateHistory = [];
 
-    // --- Таймер между ставками ---
-    let betTimerSeconds = 0;
-    let betTimerInterval = null;
-    const betSubmitBtn = document.getElementById('submitBetBtn');
-    const betTimerDiv = document.getElementById('betTimer');
-
-    function updateBetTimerDisplay() {
-        if (betTimerSeconds <= 0) {
-            betTimerDiv.innerHTML = '';
-            betSubmitBtn.disabled = false;
-            if (betTimerInterval) clearInterval(betTimerInterval);
+    // --- Загрузка истории и курса из localStorage ---
+    function loadLocalData() {
+        const savedRate = localStorage.getItem('bitamd_rate');
+        const savedHistory = localStorage.getItem('bitamd_history');
+        
+        if (savedRate && !isNaN(parseFloat(savedRate))) {
+            currentRate = parseFloat(savedRate);
         } else {
-            betTimerDiv.innerHTML = `⏳ Следующую ставку можно сделать через ${betTimerSeconds} сек`;
-            betSubmitBtn.disabled = true;
+            currentRate = 5.17;
         }
+        
+        if (savedHistory) {
+            rateHistory = JSON.parse(savedHistory);
+        } else {
+            rateHistory = [5.17, 5.43, 5.78, 6.02, 6.34];
+        }
+        
+        document.getElementById('rate').innerHTML = '1 BITAMD = ' + currentRate.toFixed(2) + ' AMD';
+        document.getElementById('update').innerHTML = 'Последнее обновление: ' + new Date().toLocaleString();
+        
+        // Обновляем отображение в рублях
+        const rub = (currentRate * RUB_PER_AMD).toFixed(2);
+        document.getElementById('rubRateInline').innerText = rub;
+        document.getElementById('rubRate').innerText = rub;
+        
+        updateTicker(currentRate);
+        drawChart(rateHistory);
+        renderHistoryList(rateHistory);
+        lastRate = currentRate;
     }
 
-    function startBetTimer(seconds) {
-        if (betTimerInterval) clearInterval(betTimerInterval);
-        betTimerSeconds = seconds;
-        updateBetTimerDisplay();
-        betTimerInterval = setInterval(() => {
-            betTimerSeconds--;
-            updateBetTimerDisplay();
-            if (betTimerSeconds <= 0) {
-                clearInterval(betTimerInterval);
+    // --- Сохранение в localStorage ---
+    function saveLocalData(rate, history) {
+        localStorage.setItem('bitamd_rate', rate);
+        localStorage.setItem('bitamd_history', JSON.stringify(history));
+    }
+
+    // --- Добавление новой точки (только если курс изменился) ---
+    function addNewRate(rate, history) {
+        if (history.length === 0 || history[history.length - 1] !== rate) {
+            history.push(rate);
+            if (history.length > 30) history.shift();
+            saveLocalData(rate, history);
+            drawChart(history);
+            renderHistoryList(history);
+            return true;
+        }
+        return false;
+    }
+
+    // --- Ручное обновление курса ---
+    document.getElementById('manualUpdateBtn').onclick = () => {
+        let newRate = prompt('Введите новый курс BITAMD (например, 6.50):');
+        if (newRate && !isNaN(parseFloat(newRate))) {
+            newRate = parseFloat(parseFloat(newRate).toFixed(2));
+            if (addNewRate(newRate, rateHistory)) {
+                currentRate = newRate;
+                document.getElementById('rate').innerHTML = '1 BITAMD = ' + currentRate.toFixed(2) + ' AMD';
+                document.getElementById('update').innerHTML = 'Обновлено вручную: ' + new Date().toLocaleString();
+                const rub = (currentRate * RUB_PER_AMD).toFixed(2);
+                document.getElementById('rubRateInline').innerText = rub;
+                document.getElementById('rubRate').innerText = rub;
+                updateTicker(currentRate);
+                updateEmojiByRateChange(currentRate, lastRate);
+                lastRate = currentRate;
+                playCoin();
+                showToast('✅ Курс обновлён!');
+            } else {
+                showToast('⚠️ Курс не изменился, точка не добавлена.');
             }
-        }, 1000);
-    }
-
-    // --- История ставок (localStorage) ---
-    let betHistory = JSON.parse(localStorage.getItem('bitamd_bet_history') || '[]');
-
-    function saveHistory() {
-        localStorage.setItem('bitamd_bet_history', JSON.stringify(betHistory));
-    }
-
-    function addBetToHistory(name, direction, amount, result = 'Ожидает результата') {
-        const time = new Date().toLocaleString();
-        betHistory.unshift({ time, name, direction, amount, result });
-        if (betHistory.length > 10) betHistory.pop();
-        saveHistory();
-        renderHistory();
-    }
-
-    function renderHistory() {
-        const container = document.getElementById('betHistory');
-        if (!betHistory.length) {
-            container.innerHTML = 'Пока нет ставок. Сделайте первую!';
-            return;
         }
-        container.innerHTML = betHistory.map(bet => `
-            <div>
-                <b>${bet.time}</b><br>
-                👤 ${bet.name} | ${bet.direction === 'up' ? '📈 Вырастет' : '📉 Упадёт'} | 💰 ${bet.amount} BITAMD<br>
-                📌 ${bet.result}
-            </div>
-        `).join('');
-    }
-
-    document.getElementById('clearHistoryBtn').onclick = () => {
-        betHistory = [];
-        saveHistory();
-        renderHistory();
-        showToast('🗑️ История ставок очищена');
-        playCoin();
     };
 
-    // --- Калькулятор вывода ---
-    function updateWithdrawCalculator() {
-        const rate = parseFloat(document.getElementById('rate').innerHTML.split('=')[1]) || 5.17;
-        const bitamd = parseFloat(document.getElementById('withdrawAmount').value) || 0;
-        const amd = (bitamd * rate).toFixed(2);
-        document.getElementById('withdrawResult').innerText = amd;
-    }
-    document.getElementById('calcWithdrawBtn').onclick = updateWithdrawCalculator;
-    document.getElementById('withdrawAmount').oninput = updateWithdrawCalculator;
-
-    // --- Вспомогательные функции ---
-    function showToast(message) {
-        const toast = document.getElementById('toastMessage');
-        toast.innerText = message;
-        toast.style.opacity = '1';
-        setTimeout(() => { toast.style.opacity = '0'; }, 2000);
-    }
-
-    function playCoin() {
-        if (!coinSound) {
-            coinSound = new Audio('https://www.soundjay.com/misc/sounds/coin-drop-2.mp3');
-            coinSound.volume = 0.2;
-        }
-        coinSound.currentTime = 0;
-        coinSound.play().catch(e => console.log("Звук заблокирован"));
-    }
-
-    document.getElementById('rate').addEventListener('click', () => {
-        clickCount++;
-        playCoin();
-        if (clickCount === 5) {
-            showToast('🎉 Вы нашли секрет! BITAMD — лучшая крипта! 🚀');
-            clickCount = 0;
-        }
-    });
-
+    // --- Отрисовка графика (Chart.js) ---
     function drawChart(history) {
         const ctx = document.getElementById('cryptoChart').getContext('2d');
         if (chart) chart.destroy();
-        if (!history || history.length === 0) history = [5.17];
+        if (!history || history.length === 0) history = [currentRate];
         chart = new Chart(ctx, {
             type: 'line',
             data: {
@@ -464,6 +436,18 @@
         });
     }
 
+    // --- Отображение списка истории ---
+    function renderHistoryList(history) {
+        const container = document.getElementById('historyList');
+        if (!container) return;
+        if (!history || history.length === 0) {
+            container.innerHTML = 'Нет данных';
+            return;
+        }
+        container.innerHTML = history.slice().reverse().map(val => `<div>${val.toFixed(2)} AMD</div>`).join('');
+    }
+
+    // --- Таймер до обновления (уже не нужно, оставим для совместимости) ---
     function updateTimerDisplay() {
         const now = new Date();
         const nextUpdate = new Date(now);
@@ -472,7 +456,8 @@
         const diffMs = nextUpdate - now;
         const minutes = Math.floor(diffMs / 60000);
         const seconds = Math.floor((diffMs % 60000) / 1000);
-        document.getElementById('timerWidget').innerHTML = `🕒 До обновления курса: ${minutes} мин ${seconds} сек`;
+        const timerWidget = document.getElementById('timerWidget');
+        if (timerWidget) timerWidget.innerHTML = `🕒 До автоматического обновления: ${minutes} мин ${seconds} сек`;
     }
     setInterval(updateTimerDisplay, 1000);
     updateTimerDisplay();
@@ -499,31 +484,33 @@
         emojiSpan.innerHTML = emoji;
     }
 
-    function refreshData() {
-        fetch('rate.json?' + Date.now())
-            .then(res => res.json())
-            .then(data => {
-                const rate = data.rate;
-                document.getElementById('rate').innerHTML = '1 BITAMD = ' + rate.toFixed(2) + ' AMD';
-                document.getElementById('update').innerHTML = 'Обновлено: ' + new Date(data.last_updated * 1000).toLocaleString();
-                updateTicker(rate);
-                const rub = (rate * RUB_PER_AMD).toFixed(2);
-                document.getElementById('rubRateInline').innerText = rub;
-                updateEmojiByRateChange(rate, lastRate);
-                if (data.history && data.history.length) {
-                    drawChart(data.history);
-                    const firstRate = data.history[0];
-                    const dailyChange = ((rate - firstRate) / firstRate * 100).toFixed(2);
-                    document.getElementById('dailyChange').innerHTML = (dailyChange >= 0 ? `+${dailyChange}` : dailyChange);
-                } else if (data.rate) {
-                    drawChart([data.rate]);
-                }
-                lastRate = rate;
-                updateWithdrawCalculator();
-            })
-            .catch(err => console.error('Ошибка загрузки rate.json:', err));
+    function showToast(message) {
+        const toast = document.getElementById('toastMessage');
+        toast.innerText = message;
+        toast.style.opacity = '1';
+        setTimeout(() => { toast.style.opacity = '0'; }, 2000);
     }
 
+    function playCoin() {
+        if (!coinSound) {
+            coinSound = new Audio('https://www.soundjay.com/misc/sounds/coin-drop-2.mp3');
+            coinSound.volume = 0.2;
+        }
+        coinSound.currentTime = 0;
+        coinSound.play().catch(e => console.log("Звук заблокирован"));
+    }
+
+    // --- Пасхалка на курс (5 кликов) ---
+    document.getElementById('rate').addEventListener('click', () => {
+        clickCount++;
+        playCoin();
+        if (clickCount === 5) {
+            showToast('🎉 Вы нашли секрет! BITAMD — лучшая крипта! 🚀');
+            clickCount = 0;
+        }
+    });
+
+    // --- Онлайн-счётчик ---
     let onlineCount = 3;
     setInterval(() => {
         let delta = Math.floor(Math.random() * 5) - 2;
@@ -539,6 +526,7 @@
         playCoin();
     };
 
+    // --- Тёмная/светлая тема ---
     function setTheme(theme) {
         if (theme === 'light') {
             document.body.classList.add('light');
@@ -547,19 +535,10 @@
             document.body.classList.remove('light');
             localStorage.setItem('bitamd_theme', 'dark');
         }
-        fetch('rate.json?' + Date.now())
-            .then(res => res.json())
-            .then(data => {
-                if (data.history && data.history.length) {
-                    drawChart(data.history);
-                } else if (data.rate) {
-                    drawChart([data.rate]);
-                }
-            });
+        drawChart(rateHistory);
     }
     const savedTheme = localStorage.getItem('bitamd_theme');
     if (savedTheme === 'light') setTheme('light');
-
     document.getElementById('themeToggle').onclick = () => {
         clickCountTheme++;
         if (clickCountTheme === 20) {
@@ -573,6 +552,79 @@
         playCoin();
     };
 
+    // --- Таймер между ставками ---
+    let betTimerSeconds = 0;
+    let betTimerInterval = null;
+    const betSubmitBtn = document.getElementById('submitBetBtn');
+    const betTimerDiv = document.getElementById('betTimer');
+
+    function updateBetTimerDisplay() {
+        if (betTimerSeconds <= 0) {
+            if (betTimerDiv) betTimerDiv.innerHTML = '';
+            if (betSubmitBtn) betSubmitBtn.disabled = false;
+            if (betTimerInterval) clearInterval(betTimerInterval);
+        } else {
+            if (betTimerDiv) betTimerDiv.innerHTML = `⏳ Следующую ставку можно сделать через ${betTimerSeconds} сек`;
+            if (betSubmitBtn) betSubmitBtn.disabled = true;
+        }
+    }
+    function startBetTimer(seconds) {
+        if (betTimerInterval) clearInterval(betTimerInterval);
+        betTimerSeconds = seconds;
+        updateBetTimerDisplay();
+        betTimerInterval = setInterval(() => {
+            betTimerSeconds--;
+            updateBetTimerDisplay();
+            if (betTimerSeconds <= 0) clearInterval(betTimerInterval);
+        }, 1000);
+    }
+
+    // --- История ставок (localStorage) ---
+    let betHistory = JSON.parse(localStorage.getItem('bitamd_bet_history') || '[]');
+    function saveBetHistory() {
+        localStorage.setItem('bitamd_bet_history', JSON.stringify(betHistory));
+    }
+    function addBetToHistory(name, direction, amount, result = 'Ожидает результата') {
+        const time = new Date().toLocaleString();
+        betHistory.unshift({ time, name, direction, amount, result });
+        if (betHistory.length > 10) betHistory.pop();
+        saveBetHistory();
+        renderBetHistory();
+    }
+    function renderBetHistory() {
+        const container = document.getElementById('betHistory');
+        if (!container) return;
+        if (!betHistory.length) {
+            container.innerHTML = 'Пока нет ставок. Сделайте первую!';
+            return;
+        }
+        container.innerHTML = betHistory.map(bet => `
+            <div>
+                <b>${bet.time}</b><br>
+                👤 ${bet.name} | ${bet.direction === 'up' ? '📈 Вырастет' : '📉 Упадёт'} | 💰 ${bet.amount} BITAMD<br>
+                📌 ${bet.result}
+            </div>
+        `).join('');
+    }
+    document.getElementById('clearHistoryBtn').onclick = () => {
+        betHistory = [];
+        saveBetHistory();
+        renderBetHistory();
+        showToast('🗑️ История ставок очищена');
+        playCoin();
+    };
+
+    // --- Калькулятор вывода ---
+    function updateWithdrawCalculator() {
+        const rate = currentRate;
+        const bitamd = parseFloat(document.getElementById('withdrawAmount').value) || 0;
+        const amd = (bitamd * rate).toFixed(2);
+        document.getElementById('withdrawResult').innerText = amd;
+    }
+    document.getElementById('calcWithdrawBtn').onclick = updateWithdrawCalculator;
+    document.getElementById('withdrawAmount').oninput = updateWithdrawCalculator;
+
+    // --- Форма ставки ---
     const betForm = document.getElementById('betForm');
     const betStatus = document.getElementById('betStatus');
     betForm.addEventListener('submit', async (e) => {
@@ -609,7 +661,7 @@
         }
     });
 
-    // Промокод
+    // --- Промокод ---
     document.getElementById('promoBtn').onclick = async () => {
         const input = document.getElementById('promoInput').value.trim().toUpperCase();
         const msgDiv = document.getElementById('promoMessage');
@@ -634,6 +686,7 @@
         }
     };
 
+    // --- Кнопки покупки/продажи ---
     const buyBtn = document.getElementById('showBuyBtn');
     const sellBtn = document.getElementById('showSellBtn');
     const buyFormDiv = document.getElementById('buyForm');
@@ -698,9 +751,9 @@
         }
     });
 
-    refreshData();
-    setInterval(refreshData, 60000);
-    renderHistory();
+    // --- Инициализация ---
+    loadLocalData();
+    renderBetHistory();
     updateWithdrawCalculator();
 </script>
 </body>
