@@ -158,7 +158,6 @@
             background: #e9ecef;
             color: #212529;
         }
-        /* Кастомное всплывающее окно (toast) */
         .toast-message {
             position: fixed;
             bottom: 80px;
@@ -265,12 +264,13 @@
 <div id="toastMessage" class="toast-message"></div>
 
 <script>
-    // --- ID формы для ставок ---
+    // --- ID формы для ставок (твой!) ---
     const BET_FORM_URL = "https://formspree.io/f/xjgzlylz";
 
     let chart = null;
     let lastRate = 5.17;
     let clickCount = 0;
+    let clickCountTheme = 0;
     let coinSound = null;
 
     function showToast(message) {
@@ -289,6 +289,7 @@
         coinSound.play().catch(e => console.log("Звук заблокирован"));
     }
 
+    // Пасхалка на курс (5 кликов)
     document.getElementById('rate').addEventListener('click', () => {
         clickCount++;
         playCoin();
@@ -367,19 +368,21 @@
     // Динамический онлайн-счётчик (иллюзия реальных людей)
     let onlineCount = 3;
     setInterval(() => {
-        let delta = Math.floor(Math.random() * 5) - 2; // -2..2
+        let delta = Math.floor(Math.random() * 5) - 2;
         onlineCount += delta;
         if (onlineCount < 1) onlineCount = 1;
         if (onlineCount > 12) onlineCount = 12;
         document.getElementById('onlineCount').innerText = onlineCount;
     }, 15000);
 
+    // Копирование ссылки
     document.getElementById('shareBtn').onclick = () => {
         navigator.clipboard.writeText(window.location.href);
         showToast('✅ Ссылка на сайт скопирована!');
         playCoin();
     };
 
+    // --- Тёмная/светлая тема с пасхалкой ---
     function setTheme(theme) {
         if (theme === 'light') {
             document.body.classList.add('light');
@@ -394,12 +397,21 @@
     }
     const savedTheme = localStorage.getItem('bitamd_theme');
     if (savedTheme === 'light') setTheme('light');
+
     document.getElementById('themeToggle').onclick = () => {
+        clickCountTheme++;
+        if (clickCountTheme === 20) {
+            showToast('🚨 Харе тыкать! Сулейману светит! 🚨');
+            playCoin();
+            clickCountTheme = 0;
+            return;
+        }
         if (document.body.classList.contains('light')) setTheme('dark');
         else setTheme('light');
         playCoin();
     };
 
+    // Форма ставки
     const betForm = document.getElementById('betForm');
     const betStatus = document.getElementById('betStatus');
     betForm.addEventListener('submit', async (e) => {
@@ -430,6 +442,7 @@
         }
     });
 
+    // Кнопки покупки/продажи
     const buyBtn = document.getElementById('showBuyBtn');
     const sellBtn = document.getElementById('showSellBtn');
     const buyFormDiv = document.getElementById('buyForm');
