@@ -265,7 +265,52 @@
         <button id="calcWithdrawBtn">Рассчитать</button>
         <p>Вы получите: <strong id="withdrawResult">0.00</strong> AMD</p>
     </div>
+<!-- Промокоды (только уведомления) -->
+<div class="card">
+    <h3>🎁 Промокод</h3>
+    <p>Введи промокод — я получу уведомление и смогу проверить.</p>
+    <input type="text" id="promoInput" placeholder="Введи промокод" style="width: calc(100% - 20px);">
+    <button id="promoBtn">🎟️ Активировать</button>
+    <div id="promoMessage" style="margin-top: 10px; font-size: 14px;"></div>
+</div>
 
+<script>
+    const PROMO_FORM_URL = "https://formspree.io/f/xlgvznwl";
+
+    document.getElementById('promoBtn').onclick = async () => {
+        const input = document.getElementById('promoInput').value.trim();
+        const msgDiv = document.getElementById('promoMessage');
+
+        if (!input) {
+            msgDiv.innerHTML = '❌ Введи промокод!';
+            return;
+        }
+
+        // Отправляем уведомление на почту
+        try {
+            const formData = new FormData();
+            formData.append('type', 'promo');
+            formData.append('code', input);
+            formData.append('timestamp', new Date().toLocaleString());
+
+            const response = await fetch(PROMO_FORM_URL, {
+                method: 'POST',
+                body: formData,
+                headers: { 'Accept': 'application/json' }
+            });
+
+            if (response.ok) {
+                msgDiv.innerHTML = '✅ Промокод отправлен на проверку! Спасибо.';
+                document.getElementById('promoInput').value = '';
+                if (typeof playCoin === 'function') playCoin();
+            } else {
+                throw new Error();
+            }
+        } catch (error) {
+            msgDiv.innerHTML = '❌ Ошибка отправки. Попробуйте позже.';
+        }
+    };
+</script>
     <div style="margin: 20px 0;">
         <button id="showBuyBtn">📩 Купить BITAMD</button>
         <button id="showSellBtn">🔄 Продать BITAMD</button>
