@@ -174,6 +174,9 @@
             pointer-events: none;
             white-space: nowrap;
         }
+        iframe {
+            border-radius: 12px;
+        }
         @media (max-width: 600px) {
             .rate { font-size: 36px; }
             .container { padding: 0 10px; }
@@ -201,6 +204,12 @@
         <h3>📈 График курса</h3>
         <canvas id="cryptoChart" width="400" height="200"></canvas>
         <div>📊 Рост за сегодня: <span id="dailyChange">0.00</span>%</div>
+    </div>
+
+    <!-- Чат от tlk.io -->
+    <div class="card">
+        <h3>💬 Общий чат</h3>
+        <iframe src="https://tlk.io/bitamd" width="100%" height="400" frameborder="0"></iframe>
     </div>
 
     <!-- Мини-игра: Сделай ставку -->
@@ -264,7 +273,7 @@
 <div id="toastMessage" class="toast-message"></div>
 
 <script>
-    // --- ID формы для ставок (твой!) ---
+    // --- ID формы для ставок ---
     const BET_FORM_URL = "https://formspree.io/f/xjgzlylz";
 
     let chart = null;
@@ -433,7 +442,7 @@
         try {
             const response = await fetch(BET_FORM_URL, { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
             if (response.ok) {
-                betStatus.innerHTML = `✅ Ставка принята, ${name}! Вы предсказали, что курс ${direction === 'up' ? 'вырастет 📈' : 'упадёт 📉'} на ${amount} BITAMD. Результат узнаете через час.`;
+                betStatus.innerHTML = `✅ Ставка принята, ${name}! Вы предсказали, что курс ${direction === 'up' ? 'вырастет 📈' : 'упадёт 📉'} na ${amount} BITAMD. Результат узнаете через час.`;
                 betForm.reset();
                 playCoin();
             } else throw new Error();
