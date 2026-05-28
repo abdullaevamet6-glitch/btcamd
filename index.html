@@ -266,7 +266,7 @@
         <p>Вы получите: <strong id="withdrawResult">0.00</strong> AMD</p>
     </div>
 
-    <!-- Промокоды (только по списку) -->
+    <!-- Промокоды -->
     <div class="card">
         <h3>🎁 Промокод</h3>
         <p>Введи промокод — если он правильный, я получу уведомление.</p>
@@ -283,31 +283,31 @@
     <!-- Форма покупки -->
     <div id="buyForm" class="form-container" style="display: none;">
         <h3>💰 Заявка на покупку BITAMD</h3>
-        <form id="buyFormElem" action="https://formspree.io/f/xvzywwzk" method="POST">
+        <form id="buyFormElem" method="POST">
             <input type="hidden" name="type" value="purchase">
             <input type="text" name="name" placeholder="👤 Имя" required>
             <input type="email" name="email" placeholder="📧 Email" required>
             <input type="number" name="amount" step="0.01" placeholder="💎 Количество BITAMD" required>
             <textarea name="message" rows="2" placeholder="💬 Telegram или другой контакт"></textarea>
-            <input type="text" name="_gotcha" style="display:none">
             <button type="submit">📩 Отправить заявку</button>
         </form>
         <div id="buyStatus"></div>
+        <div id="buyTimer" style="margin-top: 10px; font-size: 12px; color: #f7931a;"></div>
     </div>
 
     <!-- Форма продажи -->
     <div id="sellForm" class="form-container" style="display: none;">
         <h3>💰 Заявка на продажу BITAMD</h3>
-        <form id="sellFormElem" action="https://formspree.io/f/xvzywwzk" method="POST">
+        <form id="sellFormElem" method="POST">
             <input type="hidden" name="type" value="sale">
             <input type="text" name="name" placeholder="👤 Имя" required>
             <input type="email" name="email" placeholder="📧 Email" required>
             <input type="number" name="amount" step="0.01" placeholder="💎 Количество BITAMD" required>
             <textarea name="message" rows="2" placeholder="💬 Telegram или другой контакт"></textarea>
-            <input type="text" name="_gotcha" style="display:none">
             <button type="submit">🔄 Отправить заявку</button>
         </form>
         <div id="sellStatus"></div>
+        <div id="sellTimer" style="margin-top: 10px; font-size: 12px; color: #f7931a;"></div>
     </div>
 </div>
 
@@ -320,11 +320,10 @@
 <div id="toastMessage" class="toast-message"></div>
 
 <script>
-    // --- ID формы для ставок и промокодов ---
-    const BET_FORM_URL = "https://formspree.io/f/xjgzlylz";
-    const PROMO_FORM_URL = "https://formspree.io/f/xlgvznwl";
+    // --- НОВЫЙ URL ДЛЯ ВСЕХ ФОРМ ---
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyJDeJJxVVRLC64_iOnY-f7Iqfe2vplsIoSL18UMhXY0GQoDDsna-1Cun2YyrpYWJpe0A/exec";
 
-    // --- СПИСОК РАЗРЕШЁННЫХ ПРОМОКОДОВ (добавь свои) ---
+    // --- СПИСОК ПРОМОКОДОВ ---
     const VALID_PROMO_CODES = ["BITAMD2025", "SALE50", "WELCOME", "FRIEND10", "MOON100", "SECRET99"];
 
     let chart = null;
@@ -336,7 +335,6 @@
     const RUB_PER_AMD = 10;
     let rateHistory = [];
 
-    // --- Форматирование времени ---
     function formatTime(timestamp) {
         if (!timestamp || isNaN(parseFloat(timestamp))) return 'неизвестно';
         const date = new Date(parseFloat(timestamp));
@@ -344,7 +342,6 @@
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
-    // --- Загрузка курса из rate.json и обновление истории в localStorage ---
     function loadRateAndUpdateHistory() {
         fetch('rate.json?' + Date.now())
             .then(res => res.json())
@@ -353,25 +350,21 @@
                 const now = Date.now();
                 let history = JSON.parse(localStorage.getItem('bitamd_history') || '[]');
                 history = history.filter(item => item && typeof item.rate === 'number' && !isNaN(item.rate) && item.time && !isNaN(parseFloat(item.time)));
-                
                 if (history.length === 0) {
                     history = [{ time: now, rate: newRate }];
                 } else if (history[history.length - 1].rate !== newRate) {
                     history.push({ time: now, rate: newRate });
                     if (history.length > 30) history.shift();
                 }
-                
                 localStorage.setItem('bitamd_history', JSON.stringify(history));
                 rateHistory = history;
                 currentRate = newRate;
                 lastRate = newRate;
-                
                 document.getElementById('rate').innerHTML = '1 BITAMD = ' + currentRate.toFixed(2) + ' AMD';
                 document.getElementById('update').innerHTML = 'Обновлено: ' + new Date(data.last_updated * 1000).toLocaleString();
                 const rub = (currentRate * RUB_PER_AMD).toFixed(2);
                 document.getElementById('rubRateInline').innerText = rub;
                 document.getElementById('rubRate').innerText = rub;
-                
                 updateTicker(currentRate);
                 drawChart(rateHistory);
                 renderHistoryList(rateHistory);
@@ -594,9 +587,108 @@
     document.getElementById('calcWithdrawBtn').onclick = updateWithdrawCalculator;
     document.getElementById('withdrawAmount').oninput = updateWithdrawCalculator;
 
-    const betForm = document.getElementById('betForm');
+    // --- Общая функция отправки на Google Apps Script ---
+    async function sendToScript(formData, statusDiv, formElement) {
+        statusDiv.innerHTML = '⏳ Отправка...';
+        const jsonData = Object.fromEntries(formData.entries());
+        try {
+            const response = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(jsonData)
+            });
+            statusDiv.innerHTML = '✅ Заявка отправлена!';
+            formElement.reset();
+            setTimeout(() => {
+                statusDiv.innerHTML = '';
+                document.getElementById(formElement.id === 'buyFormElem' ? 'buyForm' : 'sellForm').style.display = 'none';
+                const btn = formElement.id === 'buyFormElem' ? document.getElementById('showBuyBtn') : document.getElementById('showSellBtn');
+                btn.textContent = btn.id === 'showBuyBtn' ? '📩 Купить BITAMD' : '🔄 Продать BITAMD';
+                playCoin();
+            }, 2000);
+        } catch (error) {
+            statusDiv.innerHTML = '❌ Ошибка отправки. Попробуйте позже.';
+        }
+    }
+
+    // Форма покупки
+    const buyForm = document.getElementById('buyFormElem');
+    buyForm.action = "javascript:void(0);";
+    buyForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const status = document.getElementById('buyStatus');
+        const formData = new FormData(buyForm);
+        await sendToScript(formData, status, buyForm);
+        // Таймер 10 минут
+        localStorage.setItem('buy_last_send', Date.now());
+        updateBuyTimer();
+    });
+
+    // Форма продажи
+    const sellForm = document.getElementById('sellFormElem');
+    sellForm.action = "javascript:void(0);";
+    sellForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const status = document.getElementById('sellStatus');
+        const formData = new FormData(sellForm);
+        await sendToScript(formData, status, sellForm);
+        localStorage.setItem('sell_last_send', Date.now());
+        updateSellTimer();
+    });
+
+    // Таймеры для форм
+    const BUY_TIMER_KEY = 'buy_last_send';
+    const SELL_TIMER_KEY = 'sell_last_send';
+    const buySubmitBtn = buyForm.querySelector('button[type="submit"]');
+    const sellSubmitBtn = sellForm.querySelector('button[type="submit"]');
+    const buyTimerDiv = document.getElementById('buyTimer');
+    const sellTimerDiv = document.getElementById('sellTimer');
+
+    function updateBuyTimer() {
+        const lastSend = localStorage.getItem(BUY_TIMER_KEY);
+        if (lastSend) {
+            const diff = Date.now() - parseInt(lastSend);
+            if (diff < 600000) {
+                const minutesLeft = Math.ceil((600000 - diff) / 60000);
+                buyTimerDiv.innerHTML = `⏳ Следующую заявку можно отправить через ${minutesLeft} мин`;
+                buySubmitBtn.disabled = true;
+                setTimeout(updateBuyTimer, 60000);
+            } else {
+                localStorage.removeItem(BUY_TIMER_KEY);
+                buyTimerDiv.innerHTML = '';
+                buySubmitBtn.disabled = false;
+            }
+        } else {
+            buyTimerDiv.innerHTML = '';
+            buySubmitBtn.disabled = false;
+        }
+    }
+
+    function updateSellTimer() {
+        const lastSend = localStorage.getItem(SELL_TIMER_KEY);
+        if (lastSend) {
+            const diff = Date.now() - parseInt(lastSend);
+            if (diff < 600000) {
+                const minutesLeft = Math.ceil((600000 - diff) / 60000);
+                sellTimerDiv.innerHTML = `⏳ Следующую заявку можно отправить через ${minutesLeft} мин`;
+                sellSubmitBtn.disabled = true;
+                setTimeout(updateSellTimer, 60000);
+            } else {
+                localStorage.removeItem(SELL_TIMER_KEY);
+                sellTimerDiv.innerHTML = '';
+                sellSubmitBtn.disabled = false;
+            }
+        } else {
+            sellTimerDiv.innerHTML = '';
+            sellSubmitBtn.disabled = false;
+        }
+    }
+
+    // Форма ставки
+    const betFormElement = document.getElementById('betForm');
     const betStatus = document.getElementById('betStatus');
-    betForm.addEventListener('submit', async (e) => {
+    betFormElement.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (betSubmitBtn.disabled) {
             betStatus.innerHTML = '❌ Подождите перед следующей ставкой!';
@@ -611,26 +703,28 @@
         }
         betStatus.innerHTML = '⏳ Отправка ставки...';
         const formData = new FormData();
-        formData.append('type', 'bet');
+        formData.append('type', direction === 'up' ? 'bet_up' : 'bet_down');
         formData.append('name', name);
-        formData.append('direction', direction === 'up' ? 'Вырастет' : 'Упадёт');
         formData.append('amount', amount);
         formData.append('timestamp', new Date().toLocaleString());
         try {
-            const response = await fetch(BET_FORM_URL, { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
-            if (response.ok) {
-                betStatus.innerHTML = `✅ Ставка принята, ${name}! Вы предсказали, что курс ${direction === 'up' ? 'вырастет 📈' : 'упадёт 📉'} на ${amount} BITAMD. Результат узнаете через час.`;
-                addBetToHistory(name, direction, amount);
-                startBetTimer(60);
-                betForm.reset();
-                playCoin();
-            } else throw new Error();
+            const response = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(Object.fromEntries(formData.entries()))
+            });
+            betStatus.innerHTML = `✅ Ставка принята, ${name}! Вы предсказали, что курс ${direction === 'up' ? 'вырастет 📈' : 'упадёт 📉'} на ${amount} BITAMD. Результат узнаете через час.`;
+            addBetToHistory(name, direction, amount);
+            startBetTimer(60);
+            betFormElement.reset();
+            playCoin();
         } catch (error) {
             betStatus.innerHTML = '❌ Ошибка отправки ставки. Попробуйте позже.';
         }
     });
 
-    // --- Промокод с проверкой по списку ---
+    // Промокод
     document.getElementById('promoBtn').onclick = async () => {
         const input = document.getElementById('promoInput').value.trim().toUpperCase();
         const msgDiv = document.getElementById('promoMessage');
@@ -653,14 +747,17 @@
             formData.append('type', 'promo');
             formData.append('code', input);
             formData.append('timestamp', new Date().toLocaleString());
-            const response = await fetch(PROMO_FORM_URL, { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
-            if (response.ok) {
-                msgDiv.innerHTML = '✅ Промокод активирован! Спасибо.';
-                used.push(input);
-                localStorage.setItem('used_promocodes', JSON.stringify(used));
-                document.getElementById('promoInput').value = '';
-                playCoin();
-            } else throw new Error();
+            const response = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(Object.fromEntries(formData.entries()))
+            });
+            msgDiv.innerHTML = '✅ Промокод активирован! Спасибо.';
+            used.push(input);
+            localStorage.setItem('used_promocodes', JSON.stringify(used));
+            document.getElementById('promoInput').value = '';
+            playCoin();
         } catch (error) {
             msgDiv.innerHTML = '❌ Ошибка активации. Попробуйте позже.';
         }
@@ -686,50 +783,8 @@
         playCoin();
     };
 
-    document.getElementById('buyFormElem').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const status = document.getElementById('buyStatus');
-        status.innerHTML = '⏳ Отправляем...';
-        const fd = new FormData(e.target);
-        try {
-            const res = await fetch(e.target.action, { method: 'POST', body: fd, headers: { 'Accept': 'application/json' } });
-            if (res.ok) {
-                status.innerHTML = '✅ Заявка отправлена!';
-                e.target.reset();
-                setTimeout(() => {
-                    status.innerHTML = '';
-                    buyFormDiv.style.display = 'none';
-                    buyBtn.textContent = '📩 Купить BITAMD';
-                    playCoin();
-                }, 2000);
-            } else throw new Error();
-        } catch {
-            status.innerHTML = '❌ Ошибка';
-        }
-    });
-
-    document.getElementById('sellFormElem').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const status = document.getElementById('sellStatus');
-        status.innerHTML = '⏳ Отправляем...';
-        const fd = new FormData(e.target);
-        try {
-            const res = await fetch(e.target.action, { method: 'POST', body: fd, headers: { 'Accept': 'application/json' } });
-            if (res.ok) {
-                status.innerHTML = '✅ Заявка отправлена!';
-                e.target.reset();
-                setTimeout(() => {
-                    status.innerHTML = '';
-                    sellFormDiv.style.display = 'none';
-                    sellBtn.textContent = '🔄 Продать BITAMD';
-                    playCoin();
-                }, 2000);
-            } else throw new Error();
-        } catch {
-            status.innerHTML = '❌ Ошибка';
-        }
-    });
-
+    updateBuyTimer();
+    updateSellTimer();
     loadRateAndUpdateHistory();
     renderBetHistory();
     updateWithdrawCalculator();
