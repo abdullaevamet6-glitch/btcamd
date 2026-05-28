@@ -266,7 +266,7 @@
         <p>Вы получите: <strong id="withdrawResult">0.00</strong> AMD</p>
     </div>
 
-        <!-- Промокоды -->
+    <!-- Промокоды (только по списку) -->
     <div class="card">
         <h3>🎁 Промокод</h3>
         <p>Введи промокод — если он правильный, я получу уведомление.</p>
@@ -275,61 +275,10 @@
         <div id="promoMessage" style="margin-top: 10px; font-size: 14px;"></div>
     </div>
 
-<script>
-    // --- СПИСОК ДОПУСТИМЫХ ПРОМОКОДОВ (добавь свои) ---
-    const validPromoCodes = [
-        "BITAMD2025",
-        "SALE50",
-        "WELCOME",
-        "FRIEND10",
-        "MOON100",
-        "SECRET99"
-    ];
-
-    document.getElementById('promoBtn').onclick = async () => {
-        const input = document.getElementById('promoInput').value.trim().toUpperCase();
-        const msgDiv = document.getElementById('promoMessage');
-        
-        if (!input) {
-            msgDiv.innerHTML = '❌ Введи промокод!';
-            return;
-        }
-        
-        // Проверка, есть ли код в списке разрешённых
-        if (!validPromoCodes.includes(input)) {
-            msgDiv.innerHTML = '❌ Неверный промокод!';
-            return;
-        }
-        
-        // Проверка, не активирован ли этот код уже в этом браузере (опционально)
-        const used = JSON.parse(localStorage.getItem('used_promocodes') || '[]');
-        if (used.includes(input)) {
-            msgDiv.innerHTML = '⚠️ Ты уже активировал этот промокод!';
-            return;
-        }
-        
-        msgDiv.innerHTML = '⏳ Отправка...';
-        try {
-            const formData = new FormData();
-            formData.append('type', 'promo');
-            formData.append('code', input);
-            formData.append('timestamp', new Date().toLocaleString());
-            
-            const response = await fetch(PROMO_FORM_URL, { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
-            if (response.ok) {
-                msgDiv.innerHTML = '✅ Промокод активирован! Спасибо.';
-                used.push(input);
-                localStorage.setItem('used_promocodes', JSON.stringify(used));
-                document.getElementById('promoInput').value = '';
-                playCoin();
-            } else {
-                throw new Error();
-            }
-        } catch (error) {
-            msgDiv.innerHTML = '❌ Ошибка активации. Попробуйте позже.';
-        }
-    };
-</script>
+    <div style="margin: 20px 0;">
+        <button id="showBuyBtn">📩 Купить BITAMD</button>
+        <button id="showSellBtn">🔄 Продать BITAMD</button>
+    </div>
 
     <!-- Форма покупки -->
     <div id="buyForm" class="form-container" style="display: none;">
@@ -375,6 +324,9 @@
     const BET_FORM_URL = "https://formspree.io/f/xjgzlylz";
     const PROMO_FORM_URL = "https://formspree.io/f/xlgvznwl";
 
+    // --- СПИСОК РАЗРЕШЁННЫХ ПРОМОКОДОВ (добавь свои) ---
+    const VALID_PROMO_CODES = ["BITAMD2025", "SALE50", "WELCOME", "FRIEND10", "MOON100", "SECRET99"];
+
     let chart = null;
     let currentRate = 5.17;
     let lastRate = 5.17;
@@ -384,6 +336,7 @@
     const RUB_PER_AMD = 10;
     let rateHistory = [];
 
+    // --- Форматирование времени ---
     function formatTime(timestamp) {
         if (!timestamp || isNaN(parseFloat(timestamp))) return 'неизвестно';
         const date = new Date(parseFloat(timestamp));
@@ -391,7 +344,7 @@
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
-    // --- Загрузка курса из rate.json и обновление localStorage ---
+    // --- Загрузка курса из rate.json и обновление истории в localStorage ---
     function loadRateAndUpdateHistory() {
         fetch('rate.json?' + Date.now())
             .then(res => res.json())
@@ -399,14 +352,11 @@
                 const newRate = data.rate;
                 const now = Date.now();
                 let history = JSON.parse(localStorage.getItem('bitamd_history') || '[]');
-                
-                // Фильтруем только валидные записи
                 history = history.filter(item => item && typeof item.rate === 'number' && !isNaN(item.rate) && item.time && !isNaN(parseFloat(item.time)));
                 
                 if (history.length === 0) {
                     history = [{ time: now, rate: newRate }];
-                } 
-                else if (history[history.length-1].rate !== newRate) {
+                } else if (history[history.length - 1].rate !== newRate) {
                     history.push({ time: now, rate: newRate });
                     if (history.length > 30) history.shift();
                 }
@@ -440,19 +390,16 @@
             return;
         }
         const firstRate = rateHistory[0].rate;
-        const changePercent = ((currentRate - firstRate) / firstRate * 100).toFixed(2);
-        document.getElementById('dailyChange').innerHTML = (changePercent >= 0 ? `+${changePercent}` : changePercent) + '%';
+        const change = ((currentRate - firstRate) / firstRate * 100).toFixed(2);
+        document.getElementById('dailyChange').innerHTML = (change >= 0 ? `+${change}` : change) + '%';
     }
 
     function drawChart(history) {
         const ctx = document.getElementById('cryptoChart').getContext('2d');
         if (chart) chart.destroy();
-        if (!history || history.length === 0) {
-            history = [{ time: Date.now(), rate: currentRate }];
-        }
+        if (!history || history.length === 0) history = [{ time: Date.now(), rate: currentRate }];
         const labels = history.map(item => formatTime(item.time));
         const values = history.map(item => item.rate);
-        
         chart = new Chart(ctx, {
             type: 'line',
             data: {
@@ -484,9 +431,7 @@
             container.innerHTML = 'Нет данных';
             return;
         }
-        container.innerHTML = history.slice().reverse().map(item => 
-            `<div>${formatTime(item.time)}: ${item.rate.toFixed(2)} AMD</div>`
-        ).join('');
+        container.innerHTML = history.slice().reverse().map(item => `<div>${formatTime(item.time)}: ${item.rate.toFixed(2)} AMD</div>`).join('');
     }
 
     function updateTimerDisplay() {
@@ -594,7 +539,6 @@
     let betTimerInterval = null;
     const betSubmitBtn = document.getElementById('submitBetBtn');
     const betTimerDiv = document.getElementById('betTimer');
-
     function updateBetTimerDisplay() {
         if (betTimerSeconds <= 0) {
             if (betTimerDiv) betTimerDiv.innerHTML = '';
@@ -617,9 +561,7 @@
     }
 
     let betHistory = JSON.parse(localStorage.getItem('bitamd_bet_history') || '[]');
-    function saveBetHistory() {
-        localStorage.setItem('bitamd_bet_history', JSON.stringify(betHistory));
-    }
+    function saveBetHistory() { localStorage.setItem('bitamd_bet_history', JSON.stringify(betHistory)); }
     function addBetToHistory(name, direction, amount, result = 'Ожидает результата') {
         const time = new Date().toLocaleString();
         betHistory.unshift({ time, name, direction, amount, result });
@@ -634,13 +576,7 @@
             container.innerHTML = 'Пока нет ставок. Сделайте первую!';
             return;
         }
-        container.innerHTML = betHistory.map(bet => `
-            <div>
-                <b>${bet.time}</b><br>
-                👤 ${bet.name} | ${bet.direction === 'up' ? '📈 Вырастет' : '📉 Упадёт'} | 💰 ${bet.amount} BITAMD<br>
-                📌 ${bet.result}
-            </div>
-        `).join('');
+        container.innerHTML = betHistory.map(bet => `<div><b>${bet.time}</b><br>👤 ${bet.name} | ${bet.direction === 'up' ? '📈 Вырастет' : '📉 Упадёт'} | 💰 ${bet.amount} BITAMD<br>📌 ${bet.result}</div>`).join('');
     }
     document.getElementById('clearHistoryBtn').onclick = () => {
         betHistory = [];
@@ -694,11 +630,21 @@
         }
     });
 
+    // --- Промокод с проверкой по списку ---
     document.getElementById('promoBtn').onclick = async () => {
         const input = document.getElementById('promoInput').value.trim().toUpperCase();
         const msgDiv = document.getElementById('promoMessage');
         if (!input) {
             msgDiv.innerHTML = '❌ Введи промокод!';
+            return;
+        }
+        if (!VALID_PROMO_CODES.includes(input)) {
+            msgDiv.innerHTML = '❌ Неверный промокод!';
+            return;
+        }
+        const used = JSON.parse(localStorage.getItem('used_promocodes') || '[]');
+        if (used.includes(input)) {
+            msgDiv.innerHTML = '⚠️ Ты уже активировал этот промокод!';
             return;
         }
         msgDiv.innerHTML = '⏳ Отправка...';
@@ -709,12 +655,14 @@
             formData.append('timestamp', new Date().toLocaleString());
             const response = await fetch(PROMO_FORM_URL, { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
             if (response.ok) {
-                msgDiv.innerHTML = '✅ Промокод отправлен на проверку! Спасибо.';
+                msgDiv.innerHTML = '✅ Промокод активирован! Спасибо.';
+                used.push(input);
+                localStorage.setItem('used_promocodes', JSON.stringify(used));
                 document.getElementById('promoInput').value = '';
                 playCoin();
             } else throw new Error();
         } catch (error) {
-            msgDiv.innerHTML = '❌ Ошибка отправки. Попробуйте позже.';
+            msgDiv.innerHTML = '❌ Ошибка активации. Попробуйте позже.';
         }
     };
 
