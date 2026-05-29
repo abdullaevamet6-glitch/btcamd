@@ -264,7 +264,7 @@
 
     <div class="card">
         <h3>🎁 Промокод</h3>
-        <p>Введи промокод — если он правильный, я получу уведомление. (Иногда промокоды выпадают случайно!)</p>
+        <p>Введи промокод — получи маленькую награду. (Иногда промокоды выпадают случайно!)</p>
         <input type="text" id="promoInput" placeholder="Введи промокод" style="width: calc(100% - 20px);">
         <button id="promoBtn">🎟️ Активировать</button>
         <div id="promoMessage" style="margin-top: 10px; font-size: 14px;"></div>
@@ -317,6 +317,16 @@
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyJDeJJxVVRLC64_iOnY-f7Iqfe2vplsIoSL18UMhXY0GQoDDsna-1Cun2YyrpYWJpe0A/exec";
     const VALID_PROMO_CODES = ["BITAMD2025", "SALE50", "WELCOME", "FRIEND10", "MOON100", "SECRET99"];
     const RUB_PER_AMD = 10;
+
+    // Награды за промокоды (маленькие)
+    const PROMO_REWARDS = {
+        "BITAMD2025": 5,
+        "SALE50": 3,
+        "WELCOME": 2,
+        "FRIEND10": 2,
+        "MOON100": 10,
+        "SECRET99": 8
+    };
 
     let chart = null;
     let currentRate = 5.17;
@@ -557,35 +567,53 @@
         } catch(e) { document.getElementById('betStatus').innerHTML = '❌ Ошибка'; }
     });
 
-    // Промокод
+    // Промокод (с маленькими наградами)
     document.getElementById('promoBtn').onclick = async () => {
         const code = document.getElementById('promoInput').value.trim().toUpperCase();
         const msg = document.getElementById('promoMessage');
         if (!code) { msg.innerHTML = '❌ Введите код'; return; }
-        if (!VALID_PROMO_CODES.includes(code)) { msg.innerHTML = '❌ Неверный промокод'; return; }
+        
+        if (!VALID_PROMO_CODES.includes(code)) {
+            msg.innerHTML = '❌ Неверный промокод';
+            return;
+        }
+        
+        const reward = PROMO_REWARDS[code] || 1;
         const used = JSON.parse(localStorage.getItem('used_promocodes') || '[]');
-        if (used.includes(code)) { msg.innerHTML = '⚠️ Уже активирован'; return; }
-        msg.innerHTML = '⏳ Отправка...';
+        if (used.includes(code)) {
+            msg.innerHTML = '⚠️ Уже активирован';
+            return;
+        }
+        
+        msg.innerHTML = `🎁 Промокод активирован! +${reward} AMD (начислю вручную)`;
+        used.push(code);
+        localStorage.setItem('used_promocodes', JSON.stringify(used));
+        document.getElementById('promoInput').value = '';
+        
+        // Отправка уведомления на Google Script
         try {
             await fetch(SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'promo', code, timestamp: new Date().toLocaleString() })
+                body: JSON.stringify({ 
+                    type: 'promo', 
+                    code: code, 
+                    reward: reward,
+                    timestamp: new Date().toLocaleString() 
+                })
             });
-            msg.innerHTML = '✅ Промокод активирован!';
-            used.push(code);
-            localStorage.setItem('used_promocodes', JSON.stringify(used));
-            document.getElementById('promoInput').value = '';
-            playCoin();
-        } catch(e) { msg.innerHTML = '❌ Ошибка'; }
+        } catch(e) { console.error('Ошибка отправки уведомления'); }
+        
+        playCoin();
     };
 
     // Случайный промокод с шансом 1%
     function randomPromo() {
         if (Math.random() < 0.01) {
             const rc = VALID_PROMO_CODES[Math.floor(Math.random() * VALID_PROMO_CODES.length)];
-            showToast(`🎁 Вам выпал промокод: ${rc}! Введите его выше.`);
+            const rw = PROMO_REWARDS[rc] || 1;
+            showToast(`🎁 Вам выпал промокод: ${rc} (награда +${rw} AMD)! Введите его выше.`);
             playCoin();
         }
     }
