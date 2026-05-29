@@ -264,7 +264,7 @@
 
     <div class="card">
         <h3>🎁 Промокод</h3>
-        <p>Введи промокод — получи маленькую награду. (Иногда промокоды выпадают случайно!)</p>
+        <p>Введи промокод — если он правильный, я получу уведомление. (Иногда промокоды выпадают случайно!)</p>
         <input type="text" id="promoInput" placeholder="Введи промокод" style="width: calc(100% - 20px);">
         <button id="promoBtn">🎟️ Активировать</button>
         <div id="promoMessage" style="margin-top: 10px; font-size: 14px;"></div>
@@ -484,6 +484,27 @@
         }
     }
 
+    // --- Кнопки покупки/продажи (работают) ---
+    const buyBtn = document.getElementById('showBuyBtn');
+    const sellBtn = document.getElementById('showSellBtn');
+    const buyFormDiv = document.getElementById('buyForm');
+    const sellFormDiv = document.getElementById('sellForm');
+
+    buyBtn.onclick = () => {
+        buyFormDiv.style.display = 'block';
+        sellFormDiv.style.display = 'none';
+        buyBtn.textContent = '❌ Скрыть покупку';
+        sellBtn.textContent = '🔄 Продать BITAMD';
+        playCoin();
+    };
+    sellBtn.onclick = () => {
+        sellFormDiv.style.display = 'block';
+        buyFormDiv.style.display = 'none';
+        sellBtn.textContent = '❌ Скрыть продажу';
+        buyBtn.textContent = '📩 Купить BITAMD';
+        playCoin();
+    };
+
     // --- Инициализация форм ---
     const buyForm = document.getElementById('buyFormElem');
     const buyStatus = document.getElementById('buyStatus');
@@ -567,44 +588,27 @@
         } catch(e) { document.getElementById('betStatus').innerHTML = '❌ Ошибка'; }
     });
 
-    // Промокод (с маленькими наградами)
+    // Промокод
     document.getElementById('promoBtn').onclick = async () => {
         const code = document.getElementById('promoInput').value.trim().toUpperCase();
         const msg = document.getElementById('promoMessage');
         if (!code) { msg.innerHTML = '❌ Введите код'; return; }
-        
-        if (!VALID_PROMO_CODES.includes(code)) {
-            msg.innerHTML = '❌ Неверный промокод';
-            return;
-        }
-        
+        if (!VALID_PROMO_CODES.includes(code)) { msg.innerHTML = '❌ Неверный промокод'; return; }
         const reward = PROMO_REWARDS[code] || 1;
         const used = JSON.parse(localStorage.getItem('used_promocodes') || '[]');
-        if (used.includes(code)) {
-            msg.innerHTML = '⚠️ Уже активирован';
-            return;
-        }
-        
+        if (used.includes(code)) { msg.innerHTML = '⚠️ Уже активирован'; return; }
         msg.innerHTML = `🎁 Промокод активирован! +${reward} AMD (начислю вручную)`;
         used.push(code);
         localStorage.setItem('used_promocodes', JSON.stringify(used));
         document.getElementById('promoInput').value = '';
-        
-        // Отправка уведомления на Google Script
         try {
             await fetch(SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    type: 'promo', 
-                    code: code, 
-                    reward: reward,
-                    timestamp: new Date().toLocaleString() 
-                })
+                body: JSON.stringify({ type: 'promo', code: code, reward: reward, timestamp: new Date().toLocaleString() })
             });
-        } catch(e) { console.error('Ошибка отправки уведомления'); }
-        
+        } catch(e) {}
         playCoin();
     };
 
@@ -624,7 +628,7 @@
         if (clickCount === 5) { showToast('🎉 Секрет! BITAMD лучшая крипта!'); clickCount = 0; }
         randomPromo();
     });
-    randomPromo(); // при загрузке
+    randomPromo();
 
     // Онлайн-счётчик
     let online = 3;
