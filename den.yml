@@ -53,7 +53,7 @@ jobs:
         run: |
           RATE=${{ steps.rate.outputs.RATE }}
           CHANGE="+0%"
-          curl -L "https://script.google.com/macros/s/ТВОЙ_НОВЫЙ_КЛЮЧ/exec?action=addRateHistory&rate=${RATE}&change=${CHANGE}"
+          curl -L "https://script.google.com/macros/s/AKfycbxVP-lihdiNZTN0UpjZn0GfoJlpXbgWF1n8vL82Cxl0azdAMfLR8PhfUePwxR9dfqCh/exec?action=addRateHistory&rate=${RATE}&change=${CHANGE}"
 
       - name: Commit and push updated rate.json
         run: |
