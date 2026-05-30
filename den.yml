@@ -1,63 +1,64 @@
-name: BITAMD Advanced
+name: Update BITAMD Rate
 
 on:
   schedule:
-    - cron: '0 * * * *'
-  workflow_dispatch:
-
-permissions:
-  contents: write
+    - cron: '0 * * * *'  # каждый час
+  workflow_dispatch:      # можно запустить вручную
 
 jobs:
-  update:
+  update-rate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.10'
 
-      - name: Update rate and history
+      - name: Generate new rate
+        id: rate
         run: |
           python -c "
-import json, random, time
+          import json, random
+          try:
+              with open('rate.json', 'r') as f:
+                  data = json.load(f)
+          except:
+              data = {'rate': 5.00, 'last_updated': 0, 'history': []}
+          
+          old_rate = data['rate']
+          # Изменение от -5% до +5%
+          change = random.uniform(-0.05, 0.05)
+          new_rate = round(old_rate * (1 + change), 2)
+          
+          data['rate'] = new_rate
+          data['last_updated'] = int(__import__('time').time())
+          data['history'].append(new_rate)
+          if len(data['history']) > 50:
+              data['history'] = data['history'][-50:]
+          
+          with open('rate.json', 'w') as f:
+              json.dump(data, f, indent=2)
+          
+          # Сохраняем в переменные для следующего шага
+          with open('rate.json', 'r') as f:
+              print(f'RATE={new_rate}')
+          " | grep "RATE=" >> $GITHUB_OUTPUT
 
-# Открываем файл
-with open('rate.json', 'r') as f:
-    data = json.load(f)
+      - name: Send rate to Google Sheets
+        run: |
+          RATE=${{ steps.rate.outputs.RATE }}
+          CHANGE="+0%"
+          curl -L "https://script.google.com/macros/s/ТВОЙ_НОВЫЙ_КЛЮЧ/exec?action=addRateHistory&rate=${RATE}&change=${CHANGE}"
 
-old_rate = data['rate']
-old_history = data.get('history', [])
-
-# Генерируем новый курс (случайное изменение от -10% до +10%)
-trend = random.randint(-10, 10)
-new_rate = round(old_rate + old_rate * trend / 100, 2)
-if new_rate < 0.30:
-    new_rate = 0.30
-
-# Обновляем данные
-data['rate'] = new_rate
-data['last_updated'] = int(time.time())
-
-# Добавляем в историю и оставляем последние 30 значений
-old_history.append(new_rate)
-data['history'] = old_history[-30:]
-
-# Сохраняем файл
-with open('rate.json', 'w') as f:
-    json.dump(data, f, indent=2)
-
-print(f'✅ Курс обновлён: {old_rate} -> {new_rate}')
-"
-
-      - name: Commit and push
+      - name: Commit and push updated rate.json
         run: |
           git config user.name "github-actions[bot]"
-          git config.user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add rate.json
-          git commit -m "auto update" || echo "no changes"
+          git diff --quiet && git diff --staged --quiet || git commit -m "Автообновление курса BITAMD"
           git push
