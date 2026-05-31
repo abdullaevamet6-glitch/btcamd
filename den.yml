@@ -1,12 +1,12 @@
-name: Test BITAMD Update
+name: Direct Test
 
 on:
   workflow_dispatch:
 
 jobs:
-  update:
+  test:
     runs-on: ubuntu-latest
     steps:
-      - name: Send fixed rate to Google Sheets
+      - name: Call script
         run: |
-          curl -v "https://script.google.com/macros/s/AKfycbx4zknAhUSNj9TbueuLPcwyx_z1S5slY7ULG9clvcGURITbrJYwDB2PykIbXKbssNtm/exec?action=addRateHistory&rate=7.77"
+          curl -v "https://script.google.com/macros/s/AKfycbx4zknAhUSNj9TbueuLPcwyx_z1S5slY7ULG9clvcGURITbrJYwDB2PykIbXKbssNtm/exec?action=addRateHistory&rate=8.88"
