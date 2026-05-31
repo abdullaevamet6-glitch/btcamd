@@ -39,7 +39,7 @@ jobs:
 
       - name: Send to Google Sheets
         run: |
-          curl -L "https://script.google.com/macros/s/AKfycbxKis3WVLtWT7KLTivqHUxaMPBU6_P8CqWfA1RWaGAu20RW4D7qsOd1k7sbzdfzA4K9/exec?action=addRateHistory&rate=${{ steps.rate.outputs.RATE }}&change=+0%"
+          curl -L "https://script.google.com/macros/s/AKfycbxr2yQ8L0ReZAbPRxQ1nCeB6yyIOVyKO5NJD5E855bnFaDz-7PTvXu5ylWjr5F64ghj/exec?action=addRateHistory&rate=${{ steps.rate.outputs.RATE }}&change=+0%"
 
       - name: Commit and push
         run: |
