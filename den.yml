@@ -1,4 +1,4 @@
-name: BITAMD Update
+name: Обновление курса BITAMD
 
 on:
   workflow_dispatch:
@@ -11,39 +11,40 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Python
-        run: sudo apt-get install -y python3 python3-requests
-      - name: Run update
+      
+      - name: Установить jq и bc
+        run: sudo apt-get update && sudo apt-get install -y jq bc
+      
+      - name: Создать или обновить курс
+        id: rate
         run: |
-          python3 -c "
-import json, random, time, requests
-
-# Current rate
-try:
-    with open('rate.json', 'r') as f:
-        old = json.load(f).get('rate', 5.00)
-except:
-    old = 5.00
-
-# New rate
-new = round(old * (1 + random.uniform(-0.10, 0.10)), 2)
-if new < 0.50: new = 0.50
-
-# Save locally
-with open('rate.json', 'w') as f:
-    json.dump({'rate': new, 'last_updated': int(time.time())}, f)
-
-print(f'Rate: {old} -> {new}')
-
-# Send to Google Sheet
-url = 'https://script.google.com/macros/s/AKfycbx4zknAhUSNj9TbueuLPcwyx_z1S5slY7ULG9clvcGURITbrJYwDB2PykIbXKbssNtm/exec'
-r = requests.get(url, params={'action':'addRateHistory','rate':new})
-print('Google answer:', r.text)
-"
-      - name: Commit
+          if [ -f rate.json ]; then
+            OLD_RATE=$(cat rate.json | jq -r '.rate')
+          else
+            OLD_RATE="5.00"
+          fi
+          
+          CHANGE=$((RANDOM % 21 - 10))
+          NEW_RATE=$(echo "$OLD_RATE + $OLD_RATE * $CHANGE / 100" | bc -l)
+          NEW_RATE=$(printf "%.2f" $NEW_RATE)
+          
+          if (( $(echo "$NEW_RATE < 0.50" | bc -l) )); then
+            NEW_RATE="0.50"
+          fi
+          
+          echo "{\"rate\": $NEW_RATE, \"last_updated\": $(date +%s), \"history\": []}" > rate.json
+          echo "rate=$NEW_RATE" >> $GITHUB_OUTPUT
+          
+          echo "Курс обновлен: $OLD_RATE -> $NEW_RATE"
+      
+      - name: Вызвать Google Apps Script (запись в таблицу)
+        run: |
+          curl -L "https://script.google.com/macros/s/AKfycbxT0iH9_KZuzfQmLc2JYK-8tNqLvJWBkZ3ZVi32TT_j15I77R1fYQHoYv0Hla-vc0l9/exec?action=addRateHistory&rate=${{ steps.rate.outputs.rate }}"
+      
+      - name: Отправить изменения в репозиторий
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add rate.json
-          git commit -m "auto update" || echo "no changes"
+          git commit -m "Автообновление курса BITAMD: ${{ steps.rate.outputs.rate }}" || echo "Нет изменений"
           git push
