@@ -16,35 +16,23 @@ jobs:
       - name: Generate new rate
         id: rate
         run: |
-          # Читаем старый курс
-          if [ -f rate.json ]; then
-            OLD_RATE=$(jq -r '.rate' rate.json)
-          else
-            OLD_RATE=7.55
-          fi
-          
-          # Генерируем новый курс (от -5% до +5%)
-          NEW_RATE=$(python3 -c "import random; print(round($OLD_RATE * (1 + random.uniform(-0.05, 0.05)), 2))")
-          
-          # Если новый курс равен старому — прибавляем 0.1
-          if [ "$NEW_RATE" = "$OLD_RATE" ]; then
-            NEW_RATE=$(python3 -c "print(round($OLD_RATE + 0.1, 2))")
-          fi
-          
+          # Берём случайный курс от 7.00 до 9.00
+          NEW_RATE=$(python3 -c "import random; print(round(random.uniform(7.00, 9.00), 2))")
           echo "RATE=$NEW_RATE" >> $GITHUB_OUTPUT
-          echo "OLD_RATE=$OLD_RATE" >> $GITHUB_OUTPUT
-          
-          # Обновляем rate.json
-          echo "{\"rate\": $NEW_RATE, \"last_updated\": $(date +%s), \"history\": []}" > rate.json
+          echo "Сгенерирован новый курс: $NEW_RATE"
 
       - name: Send to Google Sheets
         run: |
           curl -L "https://script.google.com/macros/s/AKfycbzBeXaj6YlHNc03DdDWMX7gaYa8G_Z36eK83T4cUMu1ORmS8sYivAT6AJnCBShdGZAC/exec?action=addRateHistory&rate=${{ steps.rate.outputs.RATE }}&change=+0%"
+
+      - name: Save to rate.json
+        run: |
+          echo "{\"rate\": ${{ steps.rate.outputs.RATE }}, \"last_updated\": $(date +%s), \"history\": []}" > rate.json
 
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add rate.json
-          git diff --quiet && git diff --staged --quiet || git commit -m "Автообновление: ${{ steps.rate.outputs.RATE }}"
+          git diff --quiet && git diff --staged --quiet || git commit -m "Автообновление курса: ${{ steps.rate.outputs.RATE }}"
           git push
