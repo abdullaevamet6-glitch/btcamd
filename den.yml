@@ -1,12 +1,50 @@
-name: TEST CURL MANUAL
+name: Обновление курса BITAMD
 
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  test:
+  update:
     runs-on: ubuntu-latest
     steps:
-      - name: Call script
+      - uses: actions/checkout@v4
+      
+      - name: Установить jq и bc
+        run: sudo apt-get update && sudo apt-get install -y jq bc
+      
+      - name: Создать или обновить курс
+        id: rate
         run: |
-          curl -v "https://script.google.com/macros/s/AKfycbx4zknAhUSNj9TbueuLPcwyx_z1S5slY7ULG9clvcGURITbrJYwDB2PykIbXKbssNtm/exec?action=addRateHistory&rate=9.99"
+          if [ -f rate.json ]; then
+            OLD_RATE=$(cat rate.json | jq -r '.rate')
+          else
+            OLD_RATE="5.00"
+          fi
+          
+          CHANGE=$((RANDOM % 21 - 10))
+          NEW_RATE=$(echo "$OLD_RATE + $OLD_RATE * $CHANGE / 100" | bc -l)
+          NEW_RATE=$(printf "%.2f" $NEW_RATE)
+          
+          if (( $(echo "$NEW_RATE < 0.50" | bc -l) )); then
+            NEW_RATE="0.50"
+          fi
+          
+          echo "{\"rate\": $NEW_RATE, \"last_updated\": $(date +%s)}" > rate.json
+          echo "rate=$NEW_RATE" >> $GITHUB_OUTPUT
+          
+          echo "Курс обновлен: $OLD_RATE -> $NEW_RATE"
+      
+      - name: Отправить курс в Google Таблицу
+        run: |
+          curl -L "https://script.google.com/macros/s/AKfycbx4zknAhUSNj9TbueuLPcwyx_z1S5slY7ULG9clvcGURITbrJYwDB2PykIbXKbssNtm/exec?action=addRateHistory&rate=${{ steps.rate.outputs.rate }}"
+      
+      - name: Отправить изменения в репозиторий
+        run: |
+          git config user.name "github-actions[bot]"
+          git config.user.email "github-actions[bot]@users.noreply.github.com"
+          git add rate.json
+          git commit -m "Автообновление курса BITAMD: ${{ steps.rate.outputs.rate }}" || echo "Нет изменений"
+          git push
