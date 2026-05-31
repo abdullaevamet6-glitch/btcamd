@@ -19,7 +19,6 @@ jobs:
         run: |
           python3 -c "
 import json, random, time, requests
-from datetime import datetime
 
 # 1. Читаем старый курс
 try:
@@ -33,19 +32,19 @@ change_pct = random.uniform(-0.10, 0.10)
 new_rate = round(old_rate * (1 + change_pct), 2)
 if new_rate < 0.50: new_rate = 0.50
 
-# 3. Сохраняем rate.json
+# 3. Сохраняем rate.json в репозитории
 with open('rate.json', 'w') as f:
     json.dump({'rate': new_rate, 'last_updated': int(time.time()), 'history': []}, f, indent=2)
 
 print(f'Курс: {old_rate} -> {new_rate}')
 
-# 4. Отправляем в Google Sheets
+# 4. Отправляем в Google Таблицу через твой скрипт
 url = 'https://script.google.com/macros/s/AKfycbx4zknAhUSNj9TbueuLPcwyx_z1S5slY7ULG9clvcGURITbrJYwDB2PykIbXKbssNtm/exec'
 resp = requests.get(url, params={'action': 'addRateHistory', 'rate': new_rate}, timeout=10)
 print(f'Ответ Google: {resp.text}')
 "
       
-      - name: Сохранить изменения
+      - name: Сохранить изменения в репозитории
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
