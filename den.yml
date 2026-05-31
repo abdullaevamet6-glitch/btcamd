@@ -22,12 +22,11 @@ jobs:
 
       - name: Send to Google Sheets
         run: |
-          echo "Отправляю курс ${{ steps.rate.outputs.RATE }}"
-          curl -v -L "https://script.google.com/macros/s/AKfycbx4zknAhUSNj9TbueuLPcwyx_z1S5slY7ULG9clvcGURITbrJYwDB2PykIbXKbssNtm/exec?action=addRateHistory&rate=${{ steps.rate.outputs.RATE }}"
+          curl -L "https://script.google.com/macros/s/AKfycbx4zknAhUSNj9TbueuLPcwyx_z1S5slY7ULG9clvcGURITbrJYwDB2PykIbXKbssNtm/exec?action=addRateHistory&rate=${{ steps.rate.outputs.RATE }}"
 
       - name: Save to rate.json
         run: |
-          echo "{\"rate\": ${{ steps.rate.outputs.RATE }}, \"last_updated\": $(date +%s)}" > rate.json
+          echo "{\"rate\": ${{ steps.rate.outputs.RATE }}, \"last_updated\": $(date +s)}" > rate.json
 
       - name: Commit and push
         run: |
