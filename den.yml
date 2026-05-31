@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Установить Python
+      - name: Установить Python и requests
         run: sudo apt-get install -y python3 python3-requests
       
       - name: Обновить курс и отправить в Google Sheets
@@ -38,7 +38,7 @@ with open('rate.json', 'w') as f:
 
 print(f'Курс: {old_rate} -> {new_rate}')
 
-# 4. Отправляем в Google Таблицу через твой скрипт
+# 4. Отправляем в Google Таблицу
 url = 'https://script.google.com/macros/s/AKfycbx4zknAhUSNj9TbueuLPcwyx_z1S5slY7ULG9clvcGURITbrJYwDB2PykIbXKbssNtm/exec'
 resp = requests.get(url, params={'action': 'addRateHistory', 'rate': new_rate}, timeout=10)
 print(f'Ответ Google: {resp.text}')
@@ -47,7 +47,7 @@ print(f'Ответ Google: {resp.text}')
       - name: Сохранить изменения в репозитории
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config.user.email "github-actions[bot]@users.noreply.github.com"
           git add rate.json
-          git diff --quiet && git diff --staged --quiet || git commit -m "Автообновление курса"
+          git commit -m "Автообновление курса" || echo "Нет изменений"
           git push
