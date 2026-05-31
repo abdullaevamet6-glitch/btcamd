@@ -37,9 +37,9 @@ jobs:
           
           echo "Курс обновлен: $OLD_RATE -> $NEW_RATE"
       
-      - name: Вызвать Google Apps Script (запись в таблицу)
+      - name: Вызвать Google Apps Script (wget)
         run: |
-          curl -L "https://script.google.com/macros/s/AKfycbxT0iH9_KZuzfQmLc2JYK-8tNqLvJWBkZ3ZVi32TT_j15I77R1fYQHoYv0Hla-vc0l9/exec?action=addRateHistory&rate=${{ steps.rate.outputs.rate }}"
+          wget -q -O - "https://script.google.com/macros/s/AKfycbxT0iH9_KZuzfQmLc2JYK-8tNqLvJWBkZ3ZVi32TT_j15I77R1fYQHoYv0Hla-vc0l9/exec?action=addRateHistory&rate=${{ steps.rate.outputs.rate }}"
       
       - name: Отправить изменения в репозиторий
         run: |
