@@ -166,18 +166,18 @@
     let rateChart = null;
     let lastBetTime = 0, lastPromoTime = 0, lastTradeTime = 0;
 
-    // Промокоды (список известен только серверу, но для активации они захардкожены)
+        // Промокоды (список известен только серверу, но для активации они захардкожены)
     const promoCodes = {
         "BITAMD2025": 10,
         "SALE50": 5,
         "WELCOME": 3,
         "FRIEND10": 2,
         "MOON100": 8,
-        "SECRET99": 15
-         "ENDOFSCHOOL": 15
-         "BESTSUMMER": 10
-        "SUMMER2026": 5
-         "SUMMER": 2
+        "SECRET99": 15,
+        "ENDOFSCHOOL": 15,
+        "BESTSUMMER": 10,
+        "SUMMER2026": 5,
+        "SUMMER": 2
     };
 
     async function loadCurrentRate() {
