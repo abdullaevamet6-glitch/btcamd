@@ -166,7 +166,7 @@
     let rateChart = null;
     let lastBetTime = 0, lastPromoTime = 0, lastTradeTime = 0;
 
-        // Промокоды (список известен только серверу, но для активации они захардкожены)
+    // Промокоды (список известен только серверу, но для активации они захардкожены)
     const promoCodes = {
         "BITAMD2025": 10,
         "SALE50": 5,
@@ -241,7 +241,7 @@
         } catch(e) { showResult('betResult', '❌ Ошибка отправки', false); }
     }
 
-        async function activatePromo() {
+    async function activatePromo() {
         const name = prompt("Введите ваше имя (для уведомления администратора):");
         if (!name) {
             showResult('promoResult', '❌ Имя обязательно для активации промокода', false);
@@ -258,7 +258,7 @@
             return;
         }
         
-        // === НОВАЯ ПРОВЕРКА: использовал ли этот игрок этот промокод ===
+        // Проверка: использовал ли этот игрок этот промокод
         const storageKey = `promo_${name}_${code}`;
         if (localStorage.getItem(storageKey)) {
             showResult('promoResult', `❌ Игрок ${name} уже использовал промокод ${code}!`, false);
@@ -270,15 +270,6 @@
         
         // Сохраняем в localStorage факт использования
         localStorage.setItem(storageKey, new Date().toISOString());
-        
-        // Отправляем письмо администратору
-        try {
-            await fetch(`${SCRIPT_URL}?action=promo&login=${encodeURIComponent(name)}&promo=${code}&reward=${reward}`);
-        } catch(e) { console.log("Ошибка отправки уведомления", e); }
-        
-        showResult('promoResult', `🎁 Поздравляем, ${name}! Вы получили ${reward} BITAMD!`, true);
-        document.getElementById('promoCode').value = '';
-    }
         
         // Отправляем письмо администратору
         try {
