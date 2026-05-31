@@ -28,6 +28,7 @@
         }
         .rate-card .rate { font-size: 72px; font-weight: 800; color: #f7931a; }
         .rate-card .change { font-size: 24px; margin-top: 8px; }
+        .rate-card .last-update { font-size: 14px; margin-top: 12px; color: #aaa; }
         .chart-container {
             background: rgba(20,20,35,0.8);
             border-radius: 32px;
@@ -107,7 +108,7 @@
     <div class="rate-card">
         <div class="rate" id="currentRate">0.00</div>
         <div class="change" id="currentChange">+0%</div>
-        <div class="sub">1 BITAMD = AMD</div>
+        <div class="last-update" id="lastUpdate">Загрузка...</div>
     </div>
 
     <div class="chart-container">
@@ -116,6 +117,7 @@
     </div>
 
     <div class="widgets-grid">
+        <!-- СТАВКИ -->
         <div class="widget-card">
             <h3>📊 ПРОГНОЗ КУРСА</h3>
             <input type="text" id="betName" placeholder="Твоё имя (обязательно)">
@@ -128,6 +130,7 @@
             <div id="betResult" class="result"></div>
         </div>
 
+        <!-- ПРОМОКОДЫ (скрытые, активация → письмо) -->
         <div class="widget-card">
             <h3>🎁 ПРОМОКОДЫ</h3>
             <div class="promo-input">
@@ -136,9 +139,10 @@
             </div>
             <div id="promoResult" class="result"></div>
             <hr>
-            <small>BITAMD2025, SALE50, WELCOME, FRIEND10, MOON100, SECRET99</small>
+            <small style="color:#555;">* промокоды не публикуются</small>
         </div>
 
+        <!-- ПОКУПКА / ПРОДАЖА -->
         <div class="widget-card">
             <h3>💎 ТОРГОВЛЯ BITAMD</h3>
             <input type="text" id="tradeName" placeholder="Твоё имя (обязательно)">
@@ -162,6 +166,16 @@
     let rateChart = null;
     let lastBetTime = 0, lastPromoTime = 0, lastTradeTime = 0;
 
+    // Промокоды (список известен только серверу, но для активации они захардкожены)
+    const promoCodes = {
+        "BITAMD2025": 10,
+        "SALE50": 5,
+        "WELCOME": 3,
+        "FRIEND10": 2,
+        "MOON100": 8,
+        "SECRET99": 15
+    };
+
     async function loadCurrentRate() {
         try {
             const res = await fetch(`${SCRIPT_URL}?action=getCurrentRate`);
@@ -173,12 +187,27 @@
         } catch(e) { console.error(e); }
     }
 
+    async function loadLastUpdate() {
+        try {
+            const res = await fetch(`${SCRIPT_URL}?action=getRateHistory`);
+            const data = await res.json();
+            if (data.success && data.history && data.history.length > 0) {
+                const last = data.history[data.history.length - 1];
+                const date = new Date(last.timestamp);
+                document.getElementById('lastUpdate').innerHTML = `🕐 Последнее обновление: ${date.toLocaleString()}`;
+            }
+        } catch(e) { console.error(e); }
+    }
+
     async function loadChart() {
         try {
             const res = await fetch(`${SCRIPT_URL}?action=getRateHistory`);
             const data = await res.json();
             if (data.success && data.history && data.history.length) {
-                const timestamps = data.history.map(h => new Date(h.timestamp).toLocaleTimeString().slice(0,5));
+                const timestamps = data.history.map(h => {
+                    const d = new Date(h.timestamp);
+                    return d.toLocaleTimeString().slice(0,5);
+                });
                 const rates = data.history.map(h => h.rate);
                 const ctx = document.getElementById('rateChart').getContext('2d');
                 if (rateChart) rateChart.destroy();
@@ -208,13 +237,25 @@
         } catch(e) { showResult('betResult', '❌ Ошибка отправки', false); }
     }
 
-    const promoCodes = { "BITAMD2025":10, "SALE50":5, "WELCOME":3, "FRIEND10":2, "MOON100":8, "SECRET99":15 };
-    function activatePromo() {
+    async function activatePromo() {
+        const name = prompt("Введите ваше имя (для уведомления администратора):");
+        if (!name) {
+            showResult('promoResult', '❌ Имя обязательно для активации промокода', false);
+            return;
+        }
         if (Date.now() - lastPromoTime < 30000) { showResult('promoResult', '⏳ Подожди 30 секунд', false); return; }
         const code = document.getElementById('promoCode').value.trim().toUpperCase();
-        if (!promoCodes[code]) { showResult('promoResult', '❌ Неверный код', false); return; }
+        if (!promoCodes[code]) { showResult('promoResult', '❌ Неверный промокод', false); return; }
+        
         lastPromoTime = Date.now();
-        showResult('promoResult', `🎁 +${promoCodes[code]} BITAMD!`, true);
+        const reward = promoCodes[code];
+        
+        // Отправляем письмо администратору
+        try {
+            await fetch(`${SCRIPT_URL}?action=promo&login=${encodeURIComponent(name)}&promo=${code}&reward=${reward}`);
+        } catch(e) { console.log("Ошибка отправки уведомления", e); }
+        
+        showResult('promoResult', `🎁 Поздравляем, ${name}! Вы получили ${reward} BITAMD!`, true);
         document.getElementById('promoCode').value = '';
     }
 
@@ -265,8 +306,10 @@
     document.getElementById('sellBtn').onclick = sell;
 
     loadCurrentRate();
+    loadLastUpdate();
     loadChart();
     setInterval(loadCurrentRate, 60000);
+    setInterval(loadLastUpdate, 60000);
 </script>
 </body>
 </html>
