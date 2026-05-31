@@ -241,18 +241,44 @@
         } catch(e) { showResult('betResult', '❌ Ошибка отправки', false); }
     }
 
-    async function activatePromo() {
+        async function activatePromo() {
         const name = prompt("Введите ваше имя (для уведомления администратора):");
         if (!name) {
             showResult('promoResult', '❌ Имя обязательно для активации промокода', false);
             return;
         }
-        if (Date.now() - lastPromoTime < 30000) { showResult('promoResult', '⏳ Подожди 30 секунд', false); return; }
+        if (Date.now() - lastPromoTime < 30000) {
+            showResult('promoResult', '⏳ Подожди 30 секунд', false);
+            return;
+        }
+        
         const code = document.getElementById('promoCode').value.trim().toUpperCase();
-        if (!promoCodes[code]) { showResult('promoResult', '❌ Неверный промокод', false); return; }
+        if (!promoCodes[code]) {
+            showResult('promoResult', '❌ Неверный промокод', false);
+            return;
+        }
+        
+        // === НОВАЯ ПРОВЕРКА: использовал ли этот игрок этот промокод ===
+        const storageKey = `promo_${name}_${code}`;
+        if (localStorage.getItem(storageKey)) {
+            showResult('promoResult', `❌ Игрок ${name} уже использовал промокод ${code}!`, false);
+            return;
+        }
         
         lastPromoTime = Date.now();
         const reward = promoCodes[code];
+        
+        // Сохраняем в localStorage факт использования
+        localStorage.setItem(storageKey, new Date().toISOString());
+        
+        // Отправляем письмо администратору
+        try {
+            await fetch(`${SCRIPT_URL}?action=promo&login=${encodeURIComponent(name)}&promo=${code}&reward=${reward}`);
+        } catch(e) { console.log("Ошибка отправки уведомления", e); }
+        
+        showResult('promoResult', `🎁 Поздравляем, ${name}! Вы получили ${reward} BITAMD!`, true);
+        document.getElementById('promoCode').value = '';
+    }
         
         // Отправляем письмо администратору
         try {
