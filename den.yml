@@ -39,8 +39,7 @@ jobs:
       
       - name: Отправить курс в Google Таблицу
         run: |
-          echo "Вызов скрипта с курсом: ${{ steps.rate.outputs.rate }}"
-          curl -v "https://script.google.com/macros/s/AKfycbx4zknAhUSNj9TbueuLPcwyx_z1S5slY7ULG9clvcGURITbrJYwDB2PykIbXKbssNtm/exec?action=addRateHistory&rate=${{ steps.rate.outputs.rate }}"
+          curl -L "https://script.google.com/macros/s/AKfycbx4zknAhUSNj9TbueuLPcwyx_z1S5slY7ULG9clvcGURITbrJYwDB2PykIbXKbssNtm/exec?action=addRateHistory&rate=${{ steps.rate.outputs.rate }}"
       
       - name: Отправить изменения в репозиторий
         run: |
