@@ -47,7 +47,7 @@ print(f'Ответ Google: {resp.text}')
       - name: Сохранить изменения в репозитории
         run: |
           git config user.name "github-actions[bot]"
-          git config.user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add rate.json
-          git commit -m "Автообновление курса" || echo "Нет изменений"
+          git diff --quiet && git diff --staged --quiet || git commit -m "Автообновление курса"
           git push
