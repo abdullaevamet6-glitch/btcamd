@@ -1,12 +1,12 @@
-name: Direct Script Test
+name: TEST CURL
 
 on:
   workflow_dispatch:
 
 jobs:
-  direct-call:
+  test:
     runs-on: ubuntu-latest
     steps:
-      - name: Call script with fixed rate
+      - name: Call script
         run: |
-          curl -v "https://script.google.com/macros/s/AKfycbx4zknAhUSNj9TbueuLPcwyx_z1S5slY7ULG9clvcGURITbrJYwDB2PykIbXKbssNtm/exec?action=addRateHistory&rate=8.88"
+          curl "https://script.google.com/macros/s/AKfycbx4zknAhUSNj9TbueuLPcwyx_z1S5slY7ULG9clvcGURITbrJYwDB2PykIbXKbssNtm/exec?action=addRateHistory&rate=9.99"
