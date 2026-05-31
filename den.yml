@@ -13,17 +13,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Generate new rate
+      - name: Generate random rate
         id: rate
         run: |
-          # Берём случайный курс от 7.00 до 9.00
           NEW_RATE=$(python3 -c "import random; print(round(random.uniform(7.00, 9.00), 2))")
           echo "RATE=$NEW_RATE" >> $GITHUB_OUTPUT
-          echo "Сгенерирован новый курс: $NEW_RATE"
+          echo "rate=$NEW_RATE" >> $GITHUB_OUTPUT
+          echo "Сгенерирован курс: $NEW_RATE"
 
       - name: Send to Google Sheets
         run: |
-          curl -L "https://script.google.com/macros/s/AKfycbzBeXaj6YlHNc03DdDWMX7gaYa8G_Z36eK83T4cUMu1ORmS8sYivAT6AJnCBShdGZAC/exec?action=addRateHistory&rate=${{ steps.rate.outputs.RATE }}&change=+0%"
+          curl -L "https://script.google.com/macros/s/AKfycbx4zknAhUSNj9TbueuLPcwyx_z1S5slY7ULG9clvcGURITbrJYwDB2PykIbXKbssNtm/exec?action=addRateHistory&rate=${{ steps.rate.outputs.RATE }}&change=+0%"
 
       - name: Save to rate.json
         run: |
