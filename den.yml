@@ -1,37 +1,12 @@
-name: Update BITAMD Rate
+name: Test BITAMD Update
 
 on:
-  schedule:
-    - cron: '0 * * * *'
   workflow_dispatch:
 
 jobs:
-  update-rate:
+  update:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Generate random rate
-        id: rate
+      - name: Send fixed rate to Google Sheets
         run: |
-          NEW_RATE=$(python3 -c "import random; print(round(random.uniform(7.00, 9.00), 2))")
-          echo "RATE=$NEW_RATE" >> $GITHUB_OUTPUT
-          echo "Сгенерирован курс: $NEW_RATE"
-
-      - name: Send to Google Sheets
-        run: |
-          curl -L "https://script.google.com/macros/s/AKfycbx4zknAhUSNj9TbueuLPcwyx_z1S5slY7ULG9clvcGURITbrJYwDB2PykIbXKbssNtm/exec?action=addRateHistory&rate=${{ steps.rate.outputs.RATE }}"
-
-      - name: Save to rate.json
-        run: |
-          echo "{\"rate\": ${{ steps.rate.outputs.RATE }}, \"last_updated\": $(date +%s)}" > rate.json
-
-      - name: Commit and push
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add rate.json
-          git diff --quiet && git diff --staged --quiet || git commit -m "Автообновление курса: ${{ steps.rate.outputs.RATE }}"
-          git push
+          curl -v "https://script.google.com/macros/s/AKfycbx4zknAhUSNj9TbueuLPcwyx_z1S5slY7ULG9clvcGURITbrJYwDB2PykIbXKbssNtm/exec?action=addRateHistory&rate=7.77"
