@@ -2,8 +2,8 @@ name: Update BITAMD Rate
 
 on:
   schedule:
-    - cron: '0 * * * *'  # каждый час
-  workflow_dispatch:      # можно запустить вручную
+    - cron: '0 * * * *'
+  workflow_dispatch:
 
 jobs:
   update-rate:
@@ -11,54 +11,40 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
+      - uses: actions/checkout@v4
 
       - name: Generate new rate
         id: rate
         run: |
-          python -c "
-          import json, random
-          try:
-              with open('rate.json', 'r') as f:
-                  data = json.load(f)
-          except:
-              data = {'rate': 5.00, 'last_updated': 0, 'history': []}
+          # Читаем старый курс
+          if [ -f rate.json ]; then
+            OLD_RATE=$(jq -r '.rate' rate.json)
+          else
+            OLD_RATE=7.55
+          fi
           
-          old_rate = data['rate']
-          # Изменение от -5% до +5%
-          change = random.uniform(-0.05, 0.05)
-          new_rate = round(old_rate * (1 + change), 2)
+          # Генерируем новый курс (от -5% до +5%)
+          NEW_RATE=$(python3 -c "import random; print(round($OLD_RATE * (1 + random.uniform(-0.05, 0.05)), 2))")
           
-          data['rate'] = new_rate
-          data['last_updated'] = int(__import__('time').time())
-          data['history'].append(new_rate)
-          if len(data['history']) > 50:
-              data['history'] = data['history'][-50:]
+          # Если новый курс равен старому — прибавляем 0.1
+          if [ "$NEW_RATE" = "$OLD_RATE" ]; then
+            NEW_RATE=$(python3 -c "print(round($OLD_RATE + 0.1, 2))")
+          fi
           
-          with open('rate.json', 'w') as f:
-              json.dump(data, f, indent=2)
+          echo "RATE=$NEW_RATE" >> $GITHUB_OUTPUT
+          echo "OLD_RATE=$OLD_RATE" >> $GITHUB_OUTPUT
           
-          # Сохраняем в переменные для следующего шага
-          with open('rate.json', 'r') as f:
-              print(f'RATE={new_rate}')
-          " | grep "RATE=" >> $GITHUB_OUTPUT
+          # Обновляем rate.json
+          echo "{\"rate\": $NEW_RATE, \"last_updated\": $(date +%s), \"history\": []}" > rate.json
 
-      - name: Send rate to Google Sheets
+      - name: Send to Google Sheets
         run: |
-          RATE=${{ steps.rate.outputs.RATE }}
-          CHANGE="+0%"
-          curl -L "https://script.google.com/macros/s/AKfycbxr2yQ8L0ReZAbPRxQ1nCeB6yyIOVyKO5NJD5E855bnFaDz-7PTvXu5ylWjr5F64ghj/exec?action=addRateHistory&rate=${RATE}&change=${CHANGE}"
+          curl -L "https://script.google.com/macros/s/AKfycbxKis3WVLtWT7KLTivqHUxaMPBU6_P8CqWfA1RWaGAu20RW4D7qsOd1k7sbzdfzA4K9/exec?action=addRateHistory&rate=${{ steps.rate.outputs.RATE }}&change=+0%"
 
-      - name: Commit and push updated rate.json
+      - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add rate.json
-          git diff --quiet && git diff --staged --quiet || git commit -m "Автообновление курса BITAMD"
+          git diff --quiet && git diff --staged --quiet || git commit -m "Автообновление: ${{ steps.rate.outputs.RATE }}"
           git push
