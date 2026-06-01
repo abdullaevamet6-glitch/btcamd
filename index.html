@@ -35,6 +35,33 @@
             padding: 24px;
             margin-bottom: 32px;
         }
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+            gap: 12px;
+        }
+        .chart-header h3 { margin: 0; }
+        .tension-buttons {
+            display: flex;
+            gap: 12px;
+        }
+        .tension-btn {
+            background: rgba(247,147,26,0.2);
+            border: 1px solid rgba(247,147,26,0.5);
+            padding: 6px 16px;
+            border-radius: 32px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tension-btn.active {
+            background: #f7931a;
+            color: #000;
+            border-color: #f7931a;
+        }
         canvas { max-height: 320px; width: 100%; }
         .widgets-grid {
             display: grid;
@@ -94,6 +121,7 @@
         @media (max-width: 700px) {
             .rate-card .rate { font-size: 48px; }
             .trade-buttons { flex-direction: column; }
+            .chart-header { flex-direction: column; align-items: flex-start; }
         }
     </style>
 </head>
@@ -112,7 +140,13 @@
     </div>
 
     <div class="chart-container">
-        <h3>📈 ИСТОРИЯ КУРСА BITAMD</h3>
+        <div class="chart-header">
+            <h3>📈 ИСТОРИЯ КУРСА BITAMD</h3>
+            <div class="tension-buttons">
+                <button id="tensionSharpBtn" class="tension-btn">📈 ОСТРЫЕ УГЛЫ</button>
+                <button id="tensionSmoothBtn" class="tension-btn">📉 ПЛАВНАЯ ЛИНИЯ</button>
+            </div>
+        </div>
         <canvas id="rateChart"></canvas>
     </div>
 
@@ -130,7 +164,7 @@
             <div id="betResult" class="result"></div>
         </div>
 
-        <!-- ПРОМОКОДЫ (скрытые, активация → письмо) -->
+        <!-- ПРОМОКОДЫ -->
         <div class="widget-card">
             <h3>🎁 ПРОМОКОДЫ</h3>
             <div class="promo-input">
@@ -165,8 +199,9 @@
     let currentRate = 0;
     let rateChart = null;
     let lastBetTime = 0, lastPromoTime = 0, lastTradeTime = 0;
+    let currentTension = 0.3; // по умолчанию плавная линия
 
-    // Промокоды (список известен только серверу, но для активации они захардкожены)
+    // Промокоды
     const promoCodes = {
         "BITAMD2025": 10,
         "SALE50": 5,
@@ -179,6 +214,42 @@
         "SUMMER2026": 5,
         "SUMMER": 2
     };
+
+    // Загрузка сохранённой настройки
+    function loadTensionSetting() {
+        const saved = localStorage.getItem('chartTension');
+        if (saved === 'sharp') {
+            currentTension = 0;
+            document.getElementById('tensionSharpBtn').classList.add('active');
+            document.getElementById('tensionSmoothBtn').classList.remove('active');
+        } else {
+            currentTension = 0.3;
+            document.getElementById('tensionSharpBtn').classList.remove('active');
+            document.getElementById('tensionSmoothBtn').classList.add('active');
+        }
+    }
+
+    // Сохранение настройки
+    function setTension(value, isSharp) {
+        currentTension = value;
+        if (isSharp) {
+            localStorage.setItem('chartTension', 'sharp');
+            document.getElementById('tensionSharpBtn').classList.add('active');
+            document.getElementById('tensionSmoothBtn').classList.remove('active');
+        } else {
+            localStorage.setItem('chartTension', 'smooth');
+            document.getElementById('tensionSharpBtn').classList.remove('active');
+            document.getElementById('tensionSmoothBtn').classList.add('active');
+        }
+        // Обновляем график с новой настройкой
+        if (rateChart) {
+            rateChart.options.elements.line.tension = currentTension;
+            rateChart.update();
+        } else {
+            // Если графика ещё нет, перезагрузим его
+            loadChart();
+        }
+    }
 
     async function loadCurrentRate() {
         try {
@@ -217,8 +288,25 @@
                 if (rateChart) rateChart.destroy();
                 rateChart = new Chart(ctx, {
                     type: 'line',
-                    data: { labels: timestamps.slice(-24), datasets: [{ label: 'BITAMD курс', data: rates.slice(-24), borderColor: '#f7931a', borderWidth: 2, fill: true, backgroundColor: 'rgba(247,147,26,0.05)', tension: 0.3 }] },
-                    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#ccc' } } }, scales: { y: { ticks: { color: '#ccc' } }, x: { ticks: { color: '#aaa' } } } }
+                    data: { 
+                        labels: timestamps.slice(-24), 
+                        datasets: [{ 
+                            label: 'BITAMD курс', 
+                            data: rates.slice(-24), 
+                            borderColor: '#f7931a', 
+                            borderWidth: 2, 
+                            fill: true, 
+                            backgroundColor: 'rgba(247,147,26,0.05)', 
+                            tension: currentTension 
+                        }] 
+                    },
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: true, 
+                        plugins: { legend: { labels: { color: '#ccc' } } }, 
+                        scales: { y: { ticks: { color: '#ccc' } }, x: { ticks: { color: '#aaa' } } },
+                        elements: { line: { tension: currentTension } }
+                    }
                 });
             }
         } catch(e) { console.error(e); }
@@ -258,7 +346,6 @@
             return;
         }
         
-        // Проверка: использовал ли этот игрок этот промокод
         const storageKey = `promo_${name}_${code}`;
         if (localStorage.getItem(storageKey)) {
             showResult('promoResult', `❌ Игрок ${name} уже использовал промокод ${code}!`, false);
@@ -268,10 +355,8 @@
         lastPromoTime = Date.now();
         const reward = promoCodes[code];
         
-        // Сохраняем в localStorage факт использования
         localStorage.setItem(storageKey, new Date().toISOString());
         
-        // Отправляем письмо администратору
         try {
             await fetch(`${SCRIPT_URL}?action=promo&login=${encodeURIComponent(name)}&promo=${code}&reward=${reward}`);
         } catch(e) { console.log("Ошибка отправки уведомления", e); }
@@ -321,11 +406,16 @@
         setTimeout(() => { if (el) el.className = 'result'; }, 3000);
     }
 
+    // Назначение обработчиков
     document.getElementById('makeBetBtn').onclick = makeBet;
     document.getElementById('activatePromoBtn').onclick = activatePromo;
     document.getElementById('buyBtn').onclick = buy;
     document.getElementById('sellBtn').onclick = sell;
+    document.getElementById('tensionSharpBtn').onclick = () => setTension(0, true);
+    document.getElementById('tensionSmoothBtn').onclick = () => setTension(0.3, false);
 
+    // Запуск
+    loadTensionSetting();
     loadCurrentRate();
     loadLastUpdate();
     loadChart();
