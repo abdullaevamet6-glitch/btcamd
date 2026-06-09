@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>BITAMD - Криптовалюта</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
@@ -11,11 +11,11 @@
             font-family: 'Segoe UI', system-ui;
             background: linear-gradient(135deg, #0a0a0f, #12121a);
             color: #fff;
-            padding: 24px;
+            padding: 20px;
             min-height: 100vh;
         }
         .container { max-width: 1400px; margin: 0 auto; }
-        .header { text-align: center; margin-bottom: 32px; }
+        .header { text-align: center; margin-bottom: 30px; }
         .header h1 { font-size: 3rem; background: linear-gradient(135deg, #f7931a, #ffd166); -webkit-background-clip: text; background-clip: text; color: transparent; }
         .rate-card {
             background: rgba(247,147,26,0.1);
@@ -91,9 +91,26 @@
         iframe { width: 100%; height: 400px; border: none; }
         hr { border-color: rgba(247,147,26,0.2); margin: 16px 0; }
         small { color: #888; font-size: 12px; }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #f7931a;
+            color: black;
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            z-index: 200;
+            opacity: 0;
+            transition: 0.2s;
+            pointer-events: none;
+        }
         @media (max-width: 700px) {
             .rate-card .rate { font-size: 48px; }
             .trade-buttons { flex-direction: column; }
+            .promo-input { flex-direction: column; }
+            .promo-input button { width: 100%; }
         }
     </style>
 </head>
@@ -107,7 +124,7 @@
 
     <div class="rate-card">
         <div class="rate" id="currentRate">0.00</div>
-        <div class="change" id="currentChange">+0%</div>
+        <div class="change" id="currentChange">📈 +0%</div>
         <div class="last-update" id="lastUpdate">Загрузка...</div>
     </div>
 
@@ -120,7 +137,7 @@
         <!-- СТАВКИ -->
         <div class="widget-card">
             <h3>📊 ПРОГНОЗ КУРСА</h3>
-            <input type="text" id="betName" placeholder="Твоё имя (обязательно)">
+            <input type="text" id="betName" placeholder="Твоё имя" value="Игрок">
             <select id="betDirection">
                 <option value="up">📈 ВЫШЕ (+10%)</option>
                 <option value="down">📉 НИЖЕ (-10%)</option>
@@ -139,13 +156,13 @@
             </div>
             <div id="promoResult" class="result"></div>
             <hr>
-            <small style="color:#555;">* промокоды не публикуются</small>
+            <small>Были добавлены летние промокоды,успей из залутать!</small>
         </div>
 
         <!-- ПОКУПКА / ПРОДАЖА -->
         <div class="widget-card">
             <h3>💎 ТОРГОВЛЯ BITAMD</h3>
-            <input type="text" id="tradeName" placeholder="Твоё имя (обязательно)">
+            <input type="text" id="tradeName" placeholder="Твоё имя" value="Игрок">
             <input type="number" id="tradeAmount" placeholder="Количество BITAMD" value="10">
             <div class="trade-buttons">
                 <button id="buyBtn" class="btn-buy">💎 КУПИТЬ</button>
@@ -160,11 +177,17 @@
     </div>
 </div>
 
+<div id="toast" class="toast"></div>
+
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwxzlQxPgwwbtVME9R2-_xEUw9j_WSo0eHXyAYmjHOBqW8Jq3pDrhQdMMa0HWULKroS/exec";
+    // ========== НАСТРОЙКИ ==========
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyl1h2EBj0OD9eCPGT1mM7ulGzf2zIbPp_kFf4AXFOy8wUNFjFG6EZTMbMzfTLeD7LL/exec";
+    
+    let currentRate = 0;
+    let rateHistory = [];
     let rateChart = null;
     let lastBetTime = 0, lastPromoTime = 0, lastTradeTime = 0;
-
+    
     const promoCodes = {
         "BITAMD2025": 10,
         "SALE50": 5,
@@ -173,48 +196,114 @@
         "MOON100": 8,
         "SECRET99": 15
     };
-
+    
+    function showToast(msg, isError=false) {
+        const toast = document.getElementById('toast');
+        toast.textContent = msg;
+        toast.style.background = isError ? '#aa3333' : '#f7931a';
+        toast.style.opacity = '1';
+        setTimeout(() => toast.style.opacity = '0', 2000);
+    }
+    
+    function showResult(elementId, message, isSuccess) {
+        const el = document.getElementById(elementId);
+        el.innerHTML = message;
+        if (isSuccess === true) el.className = 'result win';
+        else if (isSuccess === false) el.className = 'result lose';
+        else el.className = 'result';
+        setTimeout(() => { if (el) el.className = 'result'; }, 3000);
+    }
+    
+    // ========== ЗАГРУЗКА ДАННЫХ ==========
     async function loadCurrentRate() {
         try {
             const res = await fetch(`${SCRIPT_URL}?action=getCurrentRate`);
             const data = await res.json();
-            if (data.success && data.rate) {
-                currentRate = data.rate;
-                document.getElementById('currentRate').innerText = currentRate.toFixed(2);
-            }
-        } catch(e) { console.error(e); }
+            
+            if (data && data.rate) currentRate = data.rate;
+            else if (data && data.success && data.rate) currentRate = data.rate;
+            else if (typeof data === 'number') currentRate = data;
+            
+            document.getElementById('currentRate').innerText = currentRate.toFixed(4);
+            return currentRate;
+        } catch(e) { console.error(e); return null; }
     }
-
-    async function loadLastUpdate() {
+    
+    async function loadRateHistory() {
         try {
             const res = await fetch(`${SCRIPT_URL}?action=getRateHistory`);
             const data = await res.json();
-            if (data.success && data.history && data.history.length > 0) {
-                const last = data.history[data.history.length - 1];
-                const date = new Date(last.timestamp);
-                document.getElementById('lastUpdate').innerHTML = `🕐 Последнее обновление: ${date.toLocaleString()}`;
+            
+            if (data && data.success && data.history && Array.isArray(data.history)) {
+                rateHistory = data.history;
+            } else if (Array.isArray(data)) {
+                rateHistory = data;
+            } else if (data && data.history && Array.isArray(data.history)) {
+                rateHistory = data.history;
+            }
+            
+            if (rateHistory.length > 0) {
+                const last = rateHistory[rateHistory.length - 1];
+                if (last && last.rate) {
+                    currentRate = last.rate;
+                    document.getElementById('currentRate').innerText = currentRate.toFixed(4);
+                }
+                if (last && last.timestamp) {
+                    const date = new Date(last.timestamp);
+                    document.getElementById('lastUpdate').innerHTML = `🕐 Обновлено: ${date.toLocaleString()}`;
+                }
+                
+                // Вычисляем изменение
+                if (rateHistory.length >= 2) {
+                    const prev = rateHistory[rateHistory.length - 2].rate;
+                    const change = ((currentRate - prev) / prev) * 100;
+                    const changeText = change >= 0 ? `📈 +${change.toFixed(2)}%` : `📉 ${change.toFixed(2)}%`;
+                    document.getElementById('currentChange').innerHTML = changeText;
+                    document.getElementById('currentChange').style.color = change >= 0 ? '#4caf50' : '#f44336';
+                }
+                
+                drawChart();
             }
         } catch(e) { console.error(e); }
     }
-
-    async function loadChart() {
-        try {
-            const res = await fetch(`${SCRIPT_URL}?action=getRateHistory`);
-            const data = await res.json();
-            if (data.success && data.history && data.history.length) {
-                const timestamps = data.history.map(h => new Date(h.timestamp).toLocaleTimeString().slice(0,5));
-                const rates = data.history.map(h => h.rate);
-                const ctx = document.getElementById('rateChart').getContext('2d');
-                if (rateChart) rateChart.destroy();
-                rateChart = new Chart(ctx, {
-                    type: 'line',
-                    data: { labels: timestamps.slice(-24), datasets: [{ label: 'BITAMD курс', data: rates.slice(-24), borderColor: '#f7931a', borderWidth: 2, fill: true, backgroundColor: 'rgba(247,147,26,0.05)', tension: 0.3 }] },
-                    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#ccc' } } }, scales: { y: { ticks: { color: '#ccc' } }, x: { ticks: { color: '#aaa' } } } }
-                });
+    
+    function drawChart() {
+        if (!rateHistory.length) return;
+        
+        const displayHistory = rateHistory.slice(-48);
+        const timestamps = displayHistory.map(h => {
+            if (h.timestamp) return new Date(h.timestamp).toLocaleTimeString().slice(0,5);
+            return '?';
+        });
+        const rates = displayHistory.map(h => h.rate || 0);
+        
+        const ctx = document.getElementById('rateChart').getContext('2d');
+        if (rateChart) rateChart.destroy();
+        
+        rateChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: timestamps,
+                datasets: [{
+                    label: 'BITAMD курс',
+                    data: rates,
+                    borderColor: '#f7931a',
+                    borderWidth: 2,
+                    fill: true,
+                    backgroundColor: 'rgba(247,147,26,0.05)',
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { labels: { color: '#ccc' } } },
+                scales: { y: { ticks: { color: '#ccc' } }, x: { ticks: { color: '#aaa' } } }
             }
-        } catch(e) { console.error(e); }
+        });
     }
-
+    
+    // ========== ДЕЙСТВИЯ ==========
     async function makeBet() {
         const name = document.getElementById('betName').value.trim();
         if (!name) { showResult('betResult', '❌ Введи своё имя!', false); return; }
@@ -231,13 +320,9 @@
             else throw new Error(data.error);
         } catch(e) { showResult('betResult', '❌ Ошибка отправки', false); }
     }
-
+    
     async function activatePromo() {
-        const name = prompt("Введите ваше имя (для уведомления администратора):");
-        if (!name) {
-            showResult('promoResult', '❌ Имя обязательно для активации промокода', false);
-            return;
-        }
+        const name = document.getElementById('betName').value.trim() || "Игрок";
         if (Date.now() - lastPromoTime < 30000) { showResult('promoResult', '⏳ Подожди 30 секунд', false); return; }
         const code = document.getElementById('promoCode').value.trim().toUpperCase();
         if (!promoCodes[code]) { showResult('promoResult', '❌ Неверный промокод', false); return; }
@@ -247,12 +332,12 @@
         
         try {
             await fetch(`${SCRIPT_URL}?action=promo&login=${encodeURIComponent(name)}&promo=${code}&reward=${reward}`);
-        } catch(e) { console.log("Ошибка отправки уведомления", e); }
+        } catch(e) {}
         
-        showResult('promoResult', `🎁 Поздравляем, ${name}! Вы получили ${reward} BITAMD!`, true);
+        showResult('promoResult', `🎁 Поздравляем! Вы получили ${reward} BITAMD!`, true);
         document.getElementById('promoCode').value = '';
     }
-
+    
     async function buy() {
         const name = document.getElementById('tradeName').value.trim();
         if (!name) { showResult('tradeResult', '❌ Введи своё имя!', false); return; }
@@ -268,7 +353,7 @@
             else throw new Error(data.error);
         } catch(e) { showResult('tradeResult', '❌ Ошибка', false); }
     }
-
+    
     async function sell() {
         const name = document.getElementById('tradeName').value.trim();
         if (!name) { showResult('tradeResult', '❌ Введи своё имя!', false); return; }
@@ -284,26 +369,18 @@
             else throw new Error(data.error);
         } catch(e) { showResult('tradeResult', '❌ Ошибка', false); }
     }
-
-    function showResult(elementId, message, isSuccess) {
-        const el = document.getElementById(elementId);
-        el.innerHTML = message;
-        if (isSuccess === true) el.className = 'result win';
-        else if (isSuccess === false) el.className = 'result lose';
-        else el.className = 'result';
-        setTimeout(() => { if (el) el.className = 'result'; }, 3000);
-    }
-
+    
+    // ========== ЗАПУСК ==========
     document.getElementById('makeBetBtn').onclick = makeBet;
     document.getElementById('activatePromoBtn').onclick = activatePromo;
     document.getElementById('buyBtn').onclick = buy;
     document.getElementById('sellBtn').onclick = sell;
-
+    
+    // Автообновление
     loadCurrentRate();
-    loadLastUpdate();
-    loadChart();
+    loadRateHistory();
     setInterval(loadCurrentRate, 60000);
-    setInterval(loadLastUpdate, 60000);
+    setInterval(loadRateHistory, 120000);
 </script>
 </body>
 </html>
